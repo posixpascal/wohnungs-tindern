@@ -126,6 +126,20 @@ describe("canonicalDistrict / districtInText", () => {
     expect(districtInText("Bornheimer Landstraße 5", loc)).toBeNull();
     expect(districtInText("", loc)).toBeNull();
   });
+
+  test("a spelling that is just the city name loses to any named district", () => {
+    const loc = frankfurt({
+      city: "Bad Camberg",
+      districts: [info("Kernstadt", ["Bad Camberg", "Camberg", "Bad Camberg (Taunus)"]), info("Erbach", ["Bad Camberg-Erbach"])],
+    });
+    expect(districtInText("65520 Bad Camberg, Erbach", loc)).toBe("Erbach");
+    expect(districtInText("Bad Camberg (Taunus), Erbach", loc)).toBe("Erbach");
+    expect(districtInText("65520 Bad Camberg", loc)).toBe("Kernstadt");
+    expect(canonicalDistrict("Bad Camberg Erbach", loc)).toBe("Erbach");
+    const hofheim = frankfurt({ city: "Hofheim am Taunus", districts: [info("Kernstadt", ["Hofheim"]), info("Wallau")] });
+    expect(districtInText("65719 Hofheim, Wallau", hofheim)).toBe("Wallau");
+    expect(districtInText("Hofheim, Hauptstraße", hofheim)).toBe("Kernstadt");
+  });
 });
 
 describe("districtReason", () => {

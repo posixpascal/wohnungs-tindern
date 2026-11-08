@@ -135,7 +135,18 @@ function spellings(loc: Location): Spelling[] {
     spelling,
     name: meta.find((m) => fold(m.spelling) === fold(spelling))?.name ?? spelling,
   }));
-  return [...meta, ...listed].sort((a, b) => b.spelling.length - a.spelling.length);
+  const cityLevel = (s: Spelling): number => (isCityName(s.spelling, loc.city) ? 1 : 0);
+  return [...meta, ...listed].sort((a, b) => cityLevel(a) - cityLevel(b) || b.spelling.length - a.spelling.length);
+}
+
+/**
+ * "Bad Camberg", "Camberg", "Hofheim", "Idstein (Taunus)": a spelling that only
+ * names (part of) the city, usually an alias of the core town. Every portal
+ * location contains it, so it may only win when no named district matches
+ * ("65520 Bad Camberg, Erbach").
+ */
+function isCityName(spelling: string, city: string): boolean {
+  return containsWord(city, spelling.replace(/\s*\([^)]*\)\s*$/, "").trim());
 }
 
 /** Maps a portal's district text to the canonical name (exact spelling first, then a contained one); unknown stays as is. */
