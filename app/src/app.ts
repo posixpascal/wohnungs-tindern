@@ -5,14 +5,22 @@ import { sessionPlugin } from "./auth/plugin";
 import { authRoutes } from "./auth/routes";
 import { LoginRateLimiter } from "./auth/rateLimit";
 import { ingestRoutes } from "./ingest/routes";
+import { districtIngestRoutes, districtSettingsRoutes } from "./districts/routes";
 import { listingsRoutes } from "./listings/routes";
 import { swipesRoutes } from "./swipes/routes";
+import { inquiryRoutes } from "./inquiry/routes";
+import { createLlmGenerator, type InquiryGenerator } from "./inquiry/llm";
 import { ok, fail } from "./http/envelope";
 
 // Builds the API-only Elysia app (no static frontend assets). Used directly
 // by tests and wrapped by src/server.ts for the `serve` CLI command, which
 // additionally mounts the embedded frontend bundle.
-export function buildApp(db: Database, env: AppEnv) {
+// `inquiryGenerator` overrides the LLM built from env (tests inject a fake).
+export function buildApp(
+  db: Database,
+  env: AppEnv,
+  inquiryGenerator: InquiryGenerator | null = env.inquiry ? createLlmGenerator(env.inquiry) : null,
+) {
   const limiter = new LoginRateLimiter();
 
   return new Elysia()
@@ -26,8 +34,11 @@ export function buildApp(db: Database, env: AppEnv) {
     .get("/healthz", () => ok({ status: "ok" }))
     .use(authRoutes(db, env, limiter))
     .use(ingestRoutes(db, env.ingestToken))
+    .use(districtIngestRoutes(db, env.ingestToken))
+    .use(districtSettingsRoutes(db))
     .use(listingsRoutes(db))
-    .use(swipesRoutes(db));
+    .use(swipesRoutes(db))
+    .use(inquiryRoutes(db, inquiryGenerator));
 }
 
 export type App = ReturnType<typeof buildApp>;

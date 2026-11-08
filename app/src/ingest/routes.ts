@@ -7,6 +7,14 @@ import { ok, fail } from "../http/envelope";
 
 export const INGEST_PATH = "/api/ingest";
 
+// Everything under the ingest prefix is token-protected (and CSRF-exempt, see
+// auth/request.ts). A prefix match, not an exact one: Elysia also routes
+// "/api/ingest/" to "/api/ingest", so an exact comparison would let a
+// trailing slash skip the token check.
+export function isIngestPath(pathname: string): boolean {
+  return pathname === INGEST_PATH || pathname.startsWith(`${INGEST_PATH}/`);
+}
+
 export function ingestRoutes(db: Database, ingestToken: string) {
   return new Elysia()
     // `onRequest` hooks are global across the merged app (not scoped to this
@@ -15,7 +23,7 @@ export function ingestRoutes(db: Database, ingestToken: string) {
     // caller never gets the (potentially large) body parsed or sees a schema
     // validation error, only a plain 401.
     .onRequest(({ request, set }) => {
-      if (new URL(request.url).pathname !== INGEST_PATH) return undefined;
+      if (!isIngestPath(new URL(request.url).pathname)) return undefined;
       if (!verifyIngestToken(request.headers.get("authorization"), ingestToken)) {
         return fail(set, 401, "Unauthorized");
       }

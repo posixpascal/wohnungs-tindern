@@ -1,7 +1,11 @@
 import { el, clear } from "../dom";
 import { api, ApiError } from "../api";
 
-export function renderLoginView(container: HTMLElement, onSuccess: () => void | Promise<void>): void {
+export function renderLoginView(
+  container: HTMLElement,
+  onSuccess: () => void | Promise<void>,
+  onShowSettings?: () => void,
+): void {
   clear(container);
 
   const usernameInput = el("input", {
@@ -46,5 +50,11 @@ export function renderLoginView(container: HTMLElement, onSuccess: () => void | 
       .finally(() => submitButton.toggleAttribute("disabled", false));
   });
 
-  container.append(el("div", { class: "view login-view" }, [form]));
+  const children: HTMLElement[] = [form];
+  if (onShowSettings) {
+    const settingsLink = el("button", { type: "button", class: "link-button" }, ["Stadtteile ansehen"]);
+    settingsLink.addEventListener("click", onShowSettings);
+    children.push(settingsLink);
+  }
+  container.append(el("div", { class: "view login-view" }, children));
 }

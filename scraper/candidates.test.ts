@@ -161,3 +161,41 @@ describe("parseArgs", () => {
     expect(() => parseArgs(["--limit=5"])).toThrow(/unknown option --limit=5/);
   });
 });
+
+describe("detailCandidates with a district whitelist", () => {
+  const ffm = validateConfig({
+    budget: { warm_max: 1200, nebenkosten_estimate_per_sqm: 3 },
+    rooms: { min: 2, ideal: 3 },
+    locations: [{ city: "Frankfurt am Main", radius_km: 0, allowed_districts: ["Bornheim"] }],
+    preferences: { garden_or_balcony: true, ground_floor: true },
+    portals: ["kleinanzeigen"],
+  });
+  const ffmRec = (id: string, location: string) => rec(id, { city: "Frankfurt am Main", location });
+
+  test("visits an unknown district (the detail page may tell), skips one outside the whitelist", () => {
+    const db = openDb(":memory:");
+    const input = [ffmRec("1", "60385 Bornheim"), ffmRec("2", "Frankfurt am Main"), ffmRec("3", "65929 Höchst")];
+    expect(detailCandidates(db, ffm, input, { now: NOW }).map((c) => c.id)).toEqual(["kleinanzeigen:1", "kleinanzeigen:2"]);
+  });
+});
+
+describe("detailCandidates skips known listings the district selection rules out", () => {
+  test("an excluded district is neither backfilled nor refreshed", () => {
+    const base = {
+      budget: { warm_max: 1200, nebenkosten_estimate_per_sqm: 3 },
+      rooms: { min: 2, ideal: 3 },
+      preferences: { garden_or_balcony: true, ground_floor: true },
+      portals: ["kleinanzeigen"],
+    };
+    const open = validateConfig({ ...base, locations: [{ city: "Frankfurt am Main", radius_km: 0 }] });
+    const excluded = validateConfig({
+      ...base,
+      locations: [{ city: "Frankfurt am Main", radius_km: 0, excluded_districts: ["Höchst"] }],
+    });
+    const db = openDb(":memory:");
+    const input = [rec("1", { city: "Frankfurt am Main", location: "65929 Höchst", rent_warm: 900, floor: "EG" })];
+    ingestRecords(db, open, input, NOW);
+    expect(detailCandidates(db, open, [], { now: NOW }).map((c) => c.id)).toEqual(["kleinanzeigen:1"]);
+    expect(detailCandidates(db, excluded, [], { now: NOW })).toEqual([]);
+  });
+});

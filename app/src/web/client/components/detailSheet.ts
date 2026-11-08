@@ -6,6 +6,7 @@ import { renderCarousel } from "./carousel";
 import { renderDetailGrid } from "./detailGrid";
 import { renderDescription } from "./description";
 import { renderPortalLink } from "./portalLink";
+import { openInquirySheet } from "./inquirySheet";
 import { pushModal } from "../modalStackInstance";
 
 export interface DetailSheetOptions {
@@ -55,8 +56,10 @@ export function openDetailSheet(options: DetailSheetOptions): void {
     );
   }
 
+  const inquiryButton = el("button", { class: "button-secondary", type: "button" }, ["Anfrage schreiben ✉"]);
+  inquiryButton.addEventListener("click", () => openInquirySheet(listing));
   const portalLink = renderPortalLink(listing.url, "portal-link-button");
-  if (portalLink) bodyChildren.push(el("div", { class: "detail-actions" }, [portalLink]));
+  bodyChildren.push(el("div", { class: "detail-actions" }, [...(portalLink ? [portalLink] : []), inquiryButton]));
 
   if (options.onRemove) {
     const removeError = el("div", { class: "form-error hidden" });

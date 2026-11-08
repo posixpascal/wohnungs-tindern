@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { loadConfig, repoRoot, validateConfig } from "./config";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { loadConfig, repoRoot, selectionNote, validateConfig } from "./config";
 
 const valid = {
   budget: { warm_max: 1200, nebenkosten_estimate_per_sqm: 3 },
@@ -156,5 +159,121 @@ describe("repoRoot", () => {
 
   test("leaves other directories alone", () => {
     expect(repoRoot("/home/a/scraper-tools")).toBe("/home/a/scraper-tools");
+  });
+});
+
+describe("district lists and files", () => {
+  const ffm = (over: object = {}) => ({ ...valid, locations: [{ city: "Frankfurt am Main", radius_km: 0, ...over }] });
+  const file = {
+    city: "Frankfurt am Main",
+    districts: [{ name: "Gallus", aliases: ["Gallusviertel"] }, { name: "Bornheim" }, { name: "Höchst" }],
+  };
+  const files = new Map([["Frankfurt am Main", file]]);
+
+  test("reads allowed/excluded/preferred lists and defaults them to []", () => {
+    const loc = validateConfig(ffm({ allowed_districts: ["Bornheim"], excluded_districts: [" Höchst "] })).locations[0];
+    expect([loc?.allowed_districts, loc?.excluded_districts, loc?.preferred_districts, loc?.districts]).toEqual([
+      ["Bornheim"],
+      ["Höchst"],
+      [],
+      [],
+    ]);
+  });
+
+  test("reports list and location limits of the app", () => {
+    const long = "x".repeat(201);
+    const many = Array.from({ length: 201 }, (_, i) => `D${i}`);
+    expect(() => validateConfig(ffm({ excluded_districts: many, preferred_districts: [long] }))).toThrow(
+      /excluded_districts must have at most 200 entries\n- locations\[0\]\.preferred_districts: "x{40}…" is longer than 200 characters/,
+    );
+    const cities = Array.from({ length: 51 }, (_, i) => ({ city: `Stadt ${i}`, radius_km: 0 }));
+    expect(() => validateConfig({ ...valid, locations: cities })).toThrow(/locations must have at most 50 entries/);
+  });
+
+  test("rejects malformed lists", () => {
+    expect(() => validateConfig(ffm({ allowed_districts: "Bornheim", excluded_districts: [""] }))).toThrow(
+      /locations\[0\]\.allowed_districts must be an array of strings\n- locations\[0\]\.excluded_districts must be an array of strings/,
+    );
+  });
+
+  test("attaches the city's districts file and accepts names and aliases from it", () => {
+    const loc = validateConfig(ffm({ excluded_districts: ["Gallusviertel"], preferred_districts: ["Bornheim"] }), files)
+      .locations[0];
+    expect(loc?.districts.map((d) => d.name)).toEqual(["Gallus", "Bornheim", "Höchst"]);
+  });
+
+  test("with a districts file, every listed district must be in it", () => {
+    expect(() => validateConfig(ffm({ allowed_districts: ["Bornheim", "Atlantis"] }), files)).toThrow(
+      /locations\[0\]\.allowed_districts: "Atlantis" is not in config\/districts\/frankfurt-am-main\.json/,
+    );
+  });
+
+  test("reports invalid or unreadable districts files together with other problems", () => {
+    const bad = new Map<string, unknown>([["Frankfurt am Main", { city: "Frankfurt", districts: [] }]]);
+    let message = "";
+    try {
+      validateConfig({ ...ffm(), portals: ["ebay"] }, bad);
+    } catch (err) {
+      message = (err as Error).message;
+    }
+    expect(message).toContain('config/districts/frankfurt-am-main.json.city must be "Frankfurt am Main"');
+    expect(message).toContain("portals[0]");
+    const broken = new Map([["Frankfurt am Main", new Error("is not valid JSON")]]);
+    expect(() => validateConfig(ffm(), broken)).toThrow(/frankfurt-am-main\.json: is not valid JSON/);
+  });
+});
+
+describe("loadConfig with districts and the app's selection", () => {
+  const setup = async (): Promise<string> => {
+    const dir = mkdtempSync(join(tmpdir(), "wohnung-config-"));
+    const location = { city: "Frankfurt am Main", radius_km: 0, excluded_districts: ["Höchst"] };
+    await Bun.write(join(dir, "config", "search.json"), JSON.stringify({ ...valid, locations: [location] }));
+    await Bun.write(
+      join(dir, "config", "districts", "frankfurt-am-main.json"),
+      JSON.stringify({ city: "Frankfurt am Main", districts: [{ name: "Höchst" }, { name: "Bornheim" }] }),
+    );
+    return dir;
+  };
+
+  test("loads config/districts/<slug>.json next to the config", async () => {
+    const dir = await setup();
+    try {
+      const cfg = await loadConfig(join(dir, "config", "search.json"));
+      expect(cfg.locations[0]?.districts.map((d) => d.name)).toEqual(["Höchst", "Bornheim"]);
+      expect(cfg.locations[0]?.excluded_districts).toEqual(["Höchst"]);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("data/district-selection.json overrides the city's lists unless disabled", async () => {
+    const dir = await setup();
+    try {
+      const selection = { cities: [{ city: "Frankfurt am Main", allowed_districts: ["Bornheim"], excluded_districts: [], preferred_districts: [] }] };
+      await Bun.write(join(dir, "data", "district-selection.json"), JSON.stringify(selection));
+      const path = join(dir, "config", "search.json");
+      const cfg = await loadConfig(path);
+      expect([cfg.locations[0]?.allowed_districts, cfg.locations[0]?.excluded_districts]).toEqual([["Bornheim"], []]);
+      const configOnly = await loadConfig(path, { selectionPath: null });
+      expect(configOnly.locations[0]?.excluded_districts).toEqual(["Höchst"]);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("selectionNote", () => {
+  const sel = (city: string) => ({ city, allowed_districts: [], excluded_districts: [], preferred_districts: [] });
+
+  test("names the configured cities that use the app's selection", () => {
+    expect(selectionNote([sel("Frankfurt am Main"), sel("Mainz")], ["Frankfurt am Main", "Idstein"])).toBe(
+      "Stadtteil-Auswahl aus der App: Frankfurt am Main",
+    );
+    expect(selectionNote([sel("Mainz")])).toBe("Stadtteil-Auswahl aus der App: Mainz");
+  });
+
+  test("says when config/search.json applies", () => {
+    expect(selectionNote(null)).toBe("Stadtteil-Auswahl aus config/search.json (keine App-Auswahl gespeichert)");
+    expect(selectionNote([sel("Mainz")], ["Idstein"])).toContain("config/search.json");
   });
 });

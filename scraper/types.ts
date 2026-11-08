@@ -6,10 +6,30 @@ export type Flag = 0 | 1;
 export const AMENITIES = ["garden", "balcony", "bathtub"] as const;
 export type Amenity = (typeof AMENITIES)[number];
 
+/** What a district offers nearby; shown during onboarding and on the app's settings page (German text). */
+export const HIGHLIGHT_KEYS = ["shopping", "culture", "leisure", "transit", "cinema", "pool", "sights"] as const;
+export type HighlightKey = (typeof HIGHLIGHT_KEYS)[number];
+
+/** One entry of config/districts/<city-slug>.json. */
+export interface DistrictInfo {
+  /** Canonical name; listings are stored with it. */
+  readonly name: string;
+  /** Other spellings used by the portals ("Gallusviertel" for "Gallus"). */
+  readonly aliases: readonly string[];
+  readonly summary: string | null;
+  readonly highlights: Readonly<Partial<Record<HighlightKey, string>>>;
+}
+
 export interface Location {
   readonly city: string;
   readonly radius_km: number;
+  /** Score bonus; also allowed when allowed_districts is non-empty. */
   readonly preferred_districts: readonly string[];
+  /** Whitelist; empty = the whole city. */
+  readonly allowed_districts: readonly string[];
+  readonly excluded_districts: readonly string[];
+  /** Known districts from config/districts/<city-slug>.json; [] without that file. */
+  readonly districts: readonly DistrictInfo[];
 }
 
 export interface Config {

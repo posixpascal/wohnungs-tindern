@@ -1,4 +1,5 @@
 import type { Database } from "bun:sqlite";
+import { DISTRICT_VISIBLE_SQL } from "../districts/store";
 import { LISTING_COLUMNS, rowToListing, type ApiListing, type RawListingRow } from "./types";
 
 type QueueRow = RawListingRow & { liked_by: string };
@@ -10,7 +11,8 @@ const parseNames = (json: string): string[] => {
   return Array.isArray(parsed) ? parsed.filter((n): n is string => typeof n === "string") : [];
 };
 
-// Active listings the user hasn't swiped yet, ordered so listings any other
+// Active listings the user hasn't swiped yet and the district settings don't
+// rule out (excluded / outside a whitelist), ordered so listings any other
 // user already liked surface first (to encourage matching), then by score,
 // then newest first. `liked_by` names those other users for the card hint.
 export function getQueue(db: Database, userId: number, limit: number): QueueListing[] {
@@ -21,6 +23,7 @@ export function getQueue(db: Database, userId: number, limit: number): QueueList
           WHERE s2.listing_id = l.id AND s2.user_id != ? AND s2.decision = 'like') AS liked_by
        FROM listings l
        WHERE l.status = 'active'
+         AND ${DISTRICT_VISIBLE_SQL}
          AND NOT EXISTS (
            SELECT 1 FROM swipes s WHERE s.listing_id = l.id AND s.user_id = ?
          )

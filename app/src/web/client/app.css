@@ -921,3 +921,369 @@ body {
   opacity: 0.5;
   cursor: default;
 }
+
+/* Inquiry sheet (above the detail sheet) */
+.inquiry-sheet {
+  z-index: 57;
+}
+
+.inquiry-body {
+  padding: 0.85rem 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.inquiry-status {
+  font-size: 0.85rem;
+  color: var(--muted);
+  min-height: 1.2em;
+}
+
+.inquiry-text,
+.inquiry-input {
+  width: 100%;
+  box-sizing: border-box;
+  font: inherit;
+  font-size: 0.95rem;
+  color: var(--fg);
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.6rem 0.75rem;
+}
+
+.inquiry-text {
+  line-height: 1.45;
+  resize: vertical;
+}
+
+.inquiry-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.inquiry-actions .portal-link-button {
+  margin-top: 0;
+}
+
+.inquiry-button {
+  border: none;
+  cursor: pointer;
+}
+
+.inquiry-profile {
+  border-top: 1px solid var(--border);
+  padding-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.inquiry-profile summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.inquiry-profile[open] > * + * {
+  margin-top: 0.5rem;
+}
+
+.inquiry-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.button-secondary {
+  padding: 0.45rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  color: var(--fg);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  align-self: flex-start;
+}
+
+.button-secondary:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Settings: districts */
+.settings-title {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.settings-intro {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.line-icon {
+  width: 1.1rem;
+  height: 1.1rem;
+  flex-shrink: 0;
+}
+
+.settings-legend {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.settings-legend p {
+  margin: 0.3rem 0 0;
+  line-height: 1.4;
+}
+
+.settings-legend-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.9rem;
+}
+
+.settings-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--fg);
+}
+
+.settings-legend-item .line-icon {
+  width: 0.95rem;
+  height: 0.95rem;
+}
+
+.settings-city {
+  background: var(--card-bg);
+  border-radius: 12px;
+  padding: 0.6rem 0.75rem;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.settings-city-title {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.25rem 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.settings-city-summary,
+.settings-status {
+  font-weight: 400;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.settings-status {
+  margin: 0.25rem 0 0.4rem;
+}
+
+.district-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.district-row {
+  border-top: 1px solid var(--border);
+}
+
+.district-line {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.6rem;
+}
+
+.district-name {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0;
+  border: 0;
+  background: none;
+  color: var(--fg);
+  font: inherit;
+  font-size: 0.92rem;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+
+.district-chevron {
+  width: 0.85rem;
+  height: 0.85rem;
+  color: var(--muted);
+  transition: transform 0.15s;
+}
+
+.district-name[aria-expanded="true"] .district-chevron {
+  transform: rotate(90deg);
+}
+
+.district-count {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--muted);
+  background: var(--bg);
+  border-radius: 999px;
+  padding: 0.05rem 0.4rem;
+}
+
+.district-states {
+  display: inline-flex;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.district-state {
+  display: grid;
+  place-items: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.district-state .line-icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+.district-state[aria-pressed="true"] {
+  color: #fff;
+  background: var(--muted);
+}
+
+.district-state[data-state="allowed"][aria-pressed="true"] {
+  background: var(--accent-ok);
+}
+
+.district-state[data-state="preferred"][aria-pressed="true"] {
+  background: #e0a400;
+}
+
+.district-state[data-state="excluded"][aria-pressed="true"] {
+  background: var(--accent);
+}
+
+.district-state[data-state="neutral"][aria-pressed="true"] {
+  color: var(--fg);
+  background: var(--border);
+}
+
+.district-state:focus-visible,
+.district-name:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.settings-legend-item[data-state="allowed"] .line-icon {
+  color: var(--accent-ok);
+}
+
+.settings-legend-item[data-state="preferred"] .line-icon {
+  color: #e0a400;
+}
+
+.settings-legend-item[data-state="excluded"] .line-icon {
+  color: var(--accent);
+}
+
+.district-details {
+  padding: 0 0 0.7rem 1.2rem;
+  font-size: 0.82rem;
+}
+
+.district-summary {
+  margin: 0 0 0.4rem;
+  color: var(--muted);
+}
+
+.district-highlights {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.district-highlights li {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+  line-height: 1.35;
+}
+
+.district-highlights .line-icon {
+  width: 1rem;
+  height: 1rem;
+  color: var(--muted);
+  margin-top: 0.05rem;
+}
+
+.district-label {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.district-title {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.district-title > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.district-features {
+  display: flex;
+  gap: 0.3rem;
+  color: var(--muted);
+}
+
+.district-features .line-icon {
+  width: 0.8rem;
+  height: 0.8rem;
+}
+
+.district-row[data-state="excluded"] .district-title > span:first-child {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.district-state:disabled {
+  cursor: default;
+}
+
+.district-state:disabled:not([aria-pressed="true"]) {
+  opacity: 0.45;
+}

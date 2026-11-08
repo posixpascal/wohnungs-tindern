@@ -27,6 +27,9 @@ If they contain `backfill`, skip step 2 (no search): step 3 runs `candidates.ts`
 `<date>` = today as `YYYY-MM-DD`, `<slug>` = city in lowercase-kebab (`frankfurt-am-main`).
 
 1. **Config** – `Read config/search.json`. For every portal in `portals`, `Read .agents/skills/wohnung-suche/portals/<portal>.md` (location ids, URL template, scripts).
+   **Districts** – `bun run scrape` / `scrape:headless` already synced before starting you; run it anyway (cheap, and needed when started another way): `bun scraper/settings.ts` syncs the district settings with the app and prints `{"synced",…}` (or `skipped` without `WOHNUNG_URL`/`INGEST_TOKEN` – then `config/search.json` applies). Per-city lines on stderr show what applies (`erlaubt alle` = whole city). A non-zero exit (app unreachable) is not fatal: the last stored selection (`data/district-selection.json`) or the config applies; name it in the summary.
+   Interactive only: if a city has a `config/districts/<city-slug>.json` but nothing is chosen (`erlaubt alle`, nothing excluded) and the user hasn't confirmed that before, ask once (German) whether the whole city is fine or which districts to include/exclude – point to **Einstellungen** in the app, or apply the answer with the `wohnung-kriterien` skill (step 3a) before searching. Headless: never ask.
+   Portal searches stay city-wide; the district filter is applied by `candidates.ts`/`ingest.ts`, so expect many `Stadtteil nicht im Suchgebiet` filters with a whitelist.
 2. **Search** – for each portal × location:
    1. Build the search URL from the portal file with `rooms.min`, `budget.warm_max`, `area_sqm.min`, newest first.
    2. `browser_navigate`, wait, run the portal's **page check**. Blocked → bot-wall rule. `count` 0 → next city.
@@ -45,11 +48,11 @@ If they contain `backfill`, skip step 2 (no search): step 3 runs `candidates.ts`
 4. **Ingest** – `bun scraper/ingest.ts "data/raw/<date>-list-*.json" "data/raw/<date>-detail-*.json"`
    → `{"received","new","updated","filtered","invalid"}` on stdout, reasons per record on stderr (only skim them).
 5. **Sweep** – `bun scraper/sweep.ts` (listings unseen for 3 days → `gone`), prints `{"gone":N,"days":3}`.
-6. **Push** – `bun scraper/push.ts`. Without `WOHNUNG_URL`/`INGEST_TOKEN` in `.env` it prints `skipped` and exits 0 – fine. With the local default `WOHNUNG_URL` (`http://127.0.0.1:3000`), the app must be running (`bun run dev`); a connection failure fails clearly (non-zero exit, `push failed: …` on stderr), it does not crash the run silently. Non-zero exit → mention the error in the summary ("App nicht erreichbar – `bun run dev` starten und `bun run push` erneut ausführen" if it looks like a connection failure), don't retry more than once.
+6. **Push** – `bun scraper/push.ts`. Without `WOHNUNG_URL`/`INGEST_TOKEN` in `.env` it prints `skipped` and exits 0 – fine. With the local default `WOHNUNG_URL` (`http://127.0.0.1:3000`), the app must be running (`bun run docker:up` or `bun run dev`); a connection failure fails clearly (non-zero exit, `push failed: …` on stderr), it does not crash the run silently. Non-zero exit → mention the error in the summary ("App nicht erreichbar – `bun run docker:up` (oder `bun run dev`) starten und `bun run push` erneut ausführen" if it looks like a connection failure), don't retry more than once.
 7. **Report** – `bun scraper/report.ts --gone <N from sweep>` prints the path of `reports/<date>.md`.
 8. `browser_close`.
 9. **Summary (German, short)** – read the top of the report and answer with:
-   - Anzahl neue / gefilterte / verschwundene Wohnungen, Push-Status
+   - Anzahl neue / gefilterte (davon wegen Stadtteil) / verschwundene Wohnungen, Push-Status
    - Top 5: Titel (Link), Ort – Stadtteil, warm (geschätzt?), Zimmer, m², Score + Score-Notizen
    - Übersprungene Portale/Städte (Captcha, Fehler) und den Report-Pfad
 
@@ -67,7 +70,9 @@ images or a shorter text; an empty gallery or text from a detail page keeps the 
 had a detail visit only fills empty values; without any detail visit the larger gallery / longer text wins.
 Records with the same `portal:portal_id` are merged with the same rules (detail files win). Invalid records are reported and skipped; the batch never aborts.
 
-Ingest applies the hard filters (city must be one of the configured locations, warm ≤ `warm_max` with estimation for Kaltmiete-only
+Ingest applies the hard filters (city must be one of the configured locations, the district filter (`excluded_districts`, and with
+`allowed_districts` a whitelist incl. `preferred_districts` – an unknown district fails a whitelist, `candidates.ts` lets it through for
+the detail visit; the app's selection from `bun scraper/settings.ts` overrides the config per city), warm ≤ `warm_max` with estimation for Kaltmiete-only
 listings, rooms ≥ `rooms.min`, area ≥ `area_sqm.min`, with `requirements.ground_floor_or_balcony` confirmed outdoor space
 (EG, Balkon/Terrasse/Loggia, or Garten at EG/Souterrain level; unknown = rejected, so new listings need their detail visit –
 `candidates.ts` treats unknown floor/balcony as passing so they get one, unvisited ones return as `new` the next day), no WG-Zimmer / Tausch / Zeitwohnen / Senioren-WBS) and scores 0–100.

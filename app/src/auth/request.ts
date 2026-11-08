@@ -1,7 +1,7 @@
 // Small request helpers shared by auth routes: client IP extraction (only
 // trusting X-Forwarded-For when explicitly configured) and CSRF origin check.
 import { fail, type Envelope } from "../http/envelope";
-import { INGEST_PATH } from "../ingest/routes";
+import { isIngestPath } from "../ingest/routes";
 
 // Minimal structural type for Bun's Server so this module doesn't need to
 // import Bun's global types directly.
@@ -63,7 +63,8 @@ const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 //
 // `onRequest` hooks registered by any plugin apply to every route in the
 // merged app (Elysia flattens them), so this must explicitly exempt
-// `/api/ingest`: that path is bearer-token authenticated, not cookie
+// `/api/ingest` and its sub-paths (`/api/ingest/districts`): those are
+// bearer-token authenticated, not cookie
 // authenticated, and has its own (differently-shaped) client — CSRF defenses
 // built around browser Content-Type/Origin headers don't apply to it.
 export function csrfGuard({
@@ -73,7 +74,8 @@ export function csrfGuard({
   request: Request;
   set: { status?: number | string };
 }): Envelope<never> | undefined {
-  if (new URL(request.url).pathname === INGEST_PATH) return undefined;
+  const { pathname } = new URL(request.url);
+  if (isIngestPath(pathname)) return undefined;
   if (SAFE_METHODS.has(request.method.toUpperCase())) return undefined;
   if (isSafeMutation(request)) return undefined;
   return fail(set, 403, "Forbidden");

@@ -11,6 +11,7 @@ import type { Database } from "bun:sqlite";
 import { loadConfig } from "./config";
 import { getListing, openDb, queryListings } from "./db";
 import { expandArgs, readInputs } from "./ingest";
+import { districtReason } from "./districts";
 import { criteriaReason, normalize } from "./normalize";
 import { fromList, mergeRecords, parseRawRecord } from "./raw";
 import { scoreListing } from "./score";
@@ -65,14 +66,15 @@ function newCandidates(db: Database, config: Config, input: readonly unknown[], 
     const l = n.listing;
     const missing = missingFields(l);
     // an estimated or missing warm rent may be too pessimistic: judge by Kaltmiete (if any) and let the detail page decide
-    // likewise an unknown floor or balcony: assume EG / balcony so only a confirmed miss skips the visit
+    // likewise an unknown floor or balcony: assume EG / balcony so only a confirmed miss skips the visit,
+    // and an unknown district passes a district whitelist
     const judged = {
       ...l,
       rent_warm: missing.includes("warm") ? l.rent_cold ?? 0 : l.rent_warm,
       floor: l.floor ?? 0,
       has_balcony: l.has_balcony ?? 1,
     };
-    if (criteriaReason(judged, config)) return [];
+    if (criteriaReason(judged, config, { unknownDistrictPasses: true })) return [];
     return [{ id: l.id, url: l.url, kind: "new", missing, score: scoreListing(l, config).score }];
   });
 }
@@ -85,7 +87,10 @@ export function detailCandidates(
 ): Candidate[] {
   // a filtered-out listing that already got a detail visit never reached the DB: don't visit it again
   const fresh = newCandidates(db, config, input, now).filter((c) => !visits.has(c.id));
-  const active = queryListings(db, "status = 'active' ORDER BY score DESC, id");
+  // listings the district selection rules out stay active (rescore.ts) but aren't worth a detail visit
+  const active = queryListings(db, "status = 'active' ORDER BY score DESC, id").filter(
+    (l) => districtReason(l, config.locations, true) === null,
+  );
   const isBackfill = (l: Listing): boolean => !visits.has(l.id) && needsBackfill(l);
   // detail file names carry the local date
   const cutoff = localDay(new Date(Date.parse(now) - refreshDays * DAY_MS));

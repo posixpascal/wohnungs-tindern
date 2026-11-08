@@ -18,7 +18,15 @@
     "scrape": "bun scripts/scrape.ts",
     "scrape:headless": "bun scripts/scrape.ts --headless",
     "push": "bun scraper/push.ts",
+    "districts": "bun scraper/settings.ts",
     "report": "bun scraper/report.ts",
-    "rescore": "bun scraper/rescore.ts"
+    "rescore": "bun scraper/rescore.ts",
+    "docker:up": "docker compose up -d --build",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f app",
+    "docker:users": "docker compose exec -T app wohnung user list",
+    "docker:user": "docker compose exec app wohnung user add",
+    "docker:passwd": "docker compose exec app wohnung user passwd",
+    "docker:user-remove": "docker compose exec -T app wohnung user remove"
   }
 }

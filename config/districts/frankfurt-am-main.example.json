@@ -1,0 +1,65 @@
+{
+  "city": "Frankfurt am Main",
+  "districts": [
+    {
+      "name": "Bornheim",
+      "aliases": [
+        "Bornheim-Mitte"
+      ],
+      "summary": "Lebendiges Altbauviertel mit Dorfcharakter, beliebt bei Familien und jungen Leuten.",
+      "highlights": {
+        "shopping": "Berger Straße mit vielen kleinen Läden, Bäckereien und Wochenmarkt",
+        "culture": "Historischer Ortskern rund um das Uhrtürmchen",
+        "leisure": "Cafés, Apfelweinlokale und Bars an der oberen Berger Straße; Günthersburgpark in der Nähe",
+        "cinema": "Kein eigenes Kino; Kinos in der Innenstadt in ca. 10 Minuten",
+        "pool": "Panoramabad Bornheim (Hallenbad)",
+        "sights": "Uhrtürmchen und Fachwerkhäuser im alten Ortskern",
+        "transit": "U4 (Bornheim Mitte, Seckbacher Landstraße), Busse; ca. 10 Minuten in die Innenstadt"
+      }
+    },
+    {
+      "name": "Gallus",
+      "aliases": [
+        "Gallusviertel"
+      ],
+      "summary": "Ehemaliges Arbeiterviertel im Wandel, mit dem neuen Europaviertel.",
+      "highlights": {
+        "shopping": "Skyline Plaza, Supermärkte entlang der Mainzer Landstraße",
+        "culture": "Gallus Theater",
+        "leisure": "Europagarten",
+        "cinema": "Kinos in der Innenstadt, wenige S-Bahn-Minuten",
+        "pool": "Rebstockbad in der Nähe",
+        "sights": "Messeturm und Festhalle am Rand des Viertels",
+        "transit": "S-Bahn Galluswarte, U5 Europaviertel, Straßenbahn; Hauptbahnhof um die Ecke"
+      }
+    },
+    {
+      "name": "Höchst",
+      "aliases": [],
+      "summary": "Eigenständige Altstadt im Westen, günstiger als die Innenstadt.",
+      "highlights": {
+        "shopping": "Königsteiner Straße und Höchster Wochenmarkt",
+        "culture": "Höchster Schloss, Bolongaropalast, Neues Theater Höchst",
+        "leisure": "Mainufer, Altstadtgassen mit Kneipen",
+        "cinema": "Kino im Main-Taunus-Zentrum oder in der Innenstadt",
+        "pool": "Silobad",
+        "sights": "Höchster Schloss, Justinuskirche, Bolongaropalast",
+        "transit": "Bahnhof Höchst mit S-Bahn und Regionalzügen"
+      }
+    },
+    {
+      "name": "Nordend-Ost",
+      "aliases": [],
+      "summary": "Gefragtes Gründerzeitviertel, ruhig und trotzdem zentral.",
+      "highlights": {
+        "shopping": "Friedberger Platz mit Freitagsmarkt, Läden an der Berger Straße",
+        "culture": "Künstlerhaus Mousonturm in der Nähe",
+        "leisure": "Günthersburgpark, Bethmannpark, Kneipen am Friedberger Platz",
+        "cinema": "Kinos in der Innenstadt, wenige Minuten entfernt",
+        "pool": "Panoramabad Bornheim in der Nähe",
+        "sights": "Gründerzeitstraßen, Chinesischer Garten im Bethmannpark",
+        "transit": "U4 Merianplatz, Straßenbahn auf der Friedberger Landstraße"
+      }
+    }
+  ]
+}

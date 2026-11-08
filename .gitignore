@@ -11,4 +11,6 @@ deploy.mk
 backups/
 reports/
 config/search.json
+config/districts/*.json
+!config/districts/*.example.json
 .claude/settings.local.json

@@ -26,7 +26,38 @@ export type AppEnv = {
   readonly ingestToken: string;
   readonly cookieSecure: boolean;
   readonly trustProxy: boolean;
+  // null = no LLM configured; inquiries fall back to the built-in template.
+  readonly inquiry: InquiryLlmConfig | null;
 };
+
+export type InquiryLlmConfig = {
+  readonly baseUrl: string;
+  readonly apiKey: string | null;
+  readonly model: string;
+};
+
+export const DEFAULT_INQUIRY_BASE_URL = "https://openrouter.ai/api/v1";
+export const DEFAULT_INQUIRY_MODEL = "anthropic/claude-haiku-5.5";
+
+// Enabled by INQUIRY_API_KEY (OpenRouter by default) or by INQUIRY_BASE_URL
+// alone for a keyless local server such as Ollama (http://127.0.0.1:11434/v1).
+export function loadInquiryConfig(source: NodeJS.ProcessEnv): InquiryLlmConfig | null {
+  const apiKey = source["INQUIRY_API_KEY"] || null;
+  const baseUrlRaw = source["INQUIRY_BASE_URL"] || null;
+  if (!apiKey && !baseUrlRaw) return null;
+
+  const baseUrl = baseUrlRaw ?? DEFAULT_INQUIRY_BASE_URL;
+  let protocol = "";
+  try {
+    protocol = new URL(baseUrl).protocol;
+  } catch {
+    protocol = "";
+  }
+  if (protocol !== "http:" && protocol !== "https:") {
+    throw new Error("INQUIRY_BASE_URL must be an http(s) URL");
+  }
+  return { baseUrl, apiKey, model: source["INQUIRY_MODEL"] || DEFAULT_INQUIRY_MODEL };
+}
 
 const MIN_INGEST_TOKEN_LENGTH = 32;
 
@@ -56,5 +87,6 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): AppEnv {
     ingestToken,
     cookieSecure: parseBool(source["COOKIE_SECURE"], true),
     trustProxy: parseBool(source["TRUST_PROXY"], false),
+    inquiry: loadInquiryConfig(source),
   };
 }

@@ -1,5 +1,6 @@
 // Pure scoring 0..100 with short German notes.
 
+import { preferredDistrict } from "./districts";
 import type { Amenity, Config, Listing } from "./types";
 
 export interface Score {
@@ -69,8 +70,7 @@ const rentWarningPart = (l: Listing): Part => ({
 });
 
 function districtPart(l: Listing, config: Config): Part {
-  const loc = config.locations.find((c) => c.city === l.city);
-  const preferred = loc?.preferred_districts.find((d) => d.toLowerCase() === l.district?.toLowerCase());
+  const preferred = preferredDistrict(l, config.locations);
   return preferred ? { points: WEIGHTS.district, note: `${preferred} ✓` } : { points: 0, note: null };
 }
 

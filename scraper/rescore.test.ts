@@ -96,6 +96,37 @@ describe("rescoreListings", () => {
   });
 });
 
+describe("rescoreListings with districts", () => {
+  const ffm = (lists: object, files = new Map<string, unknown>()) =>
+    validateConfig(
+      { ...structuredClone(OLD), area_sqm: { min: 50 }, locations: [{ city: "Frankfurt am Main", radius_km: 0, ...lists }] },
+      files,
+    );
+  const ffmRec = (id: string, location: string) => rec(id, { location, city: "Frankfurt am Main" });
+
+  test("canonicalizes stored districts and fills missing ones, but keeps district-rejected listings active", () => {
+    const nied = { ...ffmRec("4", "Frankfurt am Main"), title: "3 Zimmerwohnung in Nied" };
+    ingestRecords(
+      db,
+      ffm({}),
+      [ffmRec("1", "60486 Gallusviertel"), ffmRec("2", "60599 Höchst"), ffmRec("3", "60316 Nordend"), nied],
+      DAY1,
+    );
+    db.run("UPDATE listings SET synced_at = ?", [DAY1]);
+    const files = new Map([
+      ["Frankfurt am Main", { city: "Frankfurt am Main", districts: [{ name: "Gallus", aliases: ["Gallusviertel"] }, { name: "Höchst" }, { name: "Nied" }] }],
+    ]);
+
+    expect(rescoreListings(db, ffm({ excluded_districts: ["Höchst"] }, files))).toEqual({ rescored: 4, changed: 2, removed: 0 });
+    expect(getListing(db, "kleinanzeigen:4")?.district).toBe("Nied");
+    const gallus = getListing(db, "kleinanzeigen:1");
+    expect([gallus?.district, gallus?.synced_at]).toEqual(["Gallus", null]);
+    // excluded in the app/config: hidden by the app queue, back as soon as the district is allowed again
+    expect(getListing(db, "kleinanzeigen:2")?.status).toBe("active");
+    expect(getListing(db, "kleinanzeigen:3")?.synced_at).toBe(DAY1);
+  });
+});
+
 describe("migrate", () => {
   test("adds has_bathtub to a DB created before the column existed", () => {
     const old = new Database(":memory:");

@@ -307,3 +307,79 @@ describe("criteriaReason", () => {
     expect(criteriaReason(ok(raw({ rent_warm: 900, title: "Wohnung" })), config)).toBeNull();
   });
 });
+
+describe("districts", () => {
+  const withDistricts = (lists: object = {}) =>
+    validateConfig(
+      {
+        budget: { warm_max: 1200, nebenkosten_estimate_per_sqm: 3 },
+        rooms: { min: 2, ideal: 3 },
+        area_sqm: { min: 50 },
+        preferences: { amenities: [], ground_floor: false },
+        locations: [{ city: "Frankfurt am Main", radius_km: 0, ...lists }],
+        portals: ["kleinanzeigen"],
+      },
+      new Map([
+        [
+          "Frankfurt am Main",
+          {
+            city: "Frankfurt am Main",
+            districts: [
+              { name: "Gallus", aliases: ["Gallusviertel"] },
+              { name: "Nordend-West" },
+              { name: "Bornheim" },
+              { name: "Höchst" },
+              { name: "Nied" },
+              { name: "Dornbusch" },
+            ],
+          },
+        ],
+      ]),
+    );
+  const ffm = (over: Partial<RawRecord>, cfg = withDistricts()): Listing => {
+    const res = normalize(raw({ location: "Frankfurt am Main", ...over }), cfg, NOW);
+    if ("reason" in res) throw new Error(res.reason);
+    return res.listing;
+  };
+
+  test("Kleinanzeigen's 'PLZ Stadtteil' location yields the district, the city itself does not", () => {
+    expect(ok(raw({ city: "Frankfurt am Main", location: "60316 Nordend" })).district).toBe("Nordend");
+    expect(ok(raw({ city: "Frankfurt am Main", location: "60329 Frankfurt am Main" })).district).toBeNull();
+    expect(ok(raw({ location: "65510 Idstein" })).district).toBeNull();
+  });
+
+  test("every portal spelling is stored under the canonical name from config/districts", () => {
+    expect(ffm({ district: "Gallusviertel" }).district).toBe("Gallus");
+    expect(ffm({ location: "Knorrstraße, Gallus, Frankfurt am Main (60326)" }).district).toBe("Gallus");
+    expect(ffm({ location: "Frankfurt am Main Gallusviertel, Schönstrasse 20" }).district).toBe("Gallus");
+    expect(ffm({ city: "Frankfurt am Main", location: "60486 Gallus" }).district).toBe("Gallus");
+    expect(ffm({ location: "Seckbach, Frankfurt am Main (60388)" }).district).toBe("Seckbach");
+  });
+
+  test("the location wins over a district only mentioned in the title", () => {
+    expect(ffm({ title: "3 Zimmer, Nähe Bornheim", location: "Seckbach, Frankfurt am Main (60388)" }).district).toBe(
+      "Seckbach",
+    );
+    expect(ffm({ title: "3 Zimmer in Bornheim", location: "Frankfurt am Main" }).district).toBe("Bornheim");
+    // real titles whose location field carried no district
+    expect(ffm({ title: "3 Zimmerwohnung in Nied", location: "Frankfurt am Main" }).district).toBe("Nied");
+    expect(ffm({ title: "Wohnung in bester Lage von Frankfurt (Dornbusch)", location: "Frankfurt am Main" }).district).toBe(
+      "Dornbusch",
+    );
+  });
+
+  test("criteriaReason applies excluded districts and whitelists", () => {
+    const base = { rent_warm: 1000, rooms: 3, area: 70 };
+    const excluded = withDistricts({ excluded_districts: ["Höchst"] });
+    expect(criteriaReason(ffm({ ...base, district: "Höchst" }, excluded), excluded)).toBe("Stadtteil ausgeschlossen (Höchst)");
+    const whitelist = withDistricts({ allowed_districts: ["Bornheim"], preferred_districts: ["Gallus"] });
+    expect(criteriaReason(ffm({ ...base, district: "Bornheim" }, whitelist), whitelist)).toBeNull();
+    expect(criteriaReason(ffm({ ...base, district: "Gallusviertel" }, whitelist), whitelist)).toBeNull();
+    expect(criteriaReason(ffm({ ...base, district: "Nordend-West" }, whitelist), whitelist)).toBe(
+      "Stadtteil nicht im Suchgebiet (Nordend-West)",
+    );
+    const unknown = ffm(base, whitelist);
+    expect(criteriaReason(unknown, whitelist)).toBe("Stadtteil unbekannt");
+    expect(criteriaReason(unknown, whitelist, { unknownDistrictPasses: true })).toBeNull();
+  });
+});

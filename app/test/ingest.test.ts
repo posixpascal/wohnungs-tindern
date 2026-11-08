@@ -31,6 +31,24 @@ function validListing(overrides: Record<string, unknown> = {}) {
 }
 
 describe("ingest auth", () => {
+  // Elysia routes "/api/ingest/" like "/api/ingest": the token check must too.
+  for (const [path, body] of [
+    ["/api/ingest/", { listings: [] }],
+    ["/api/ingest/districts/", { overwrite: true, cities: [] }],
+  ] as const) {
+    test(`rejects an unauthenticated POST to ${path} (trailing slash)`, async () => {
+      const app = buildApp(testDb(), testEnv());
+      const res = await app.handle(
+        new Request(`http://localhost${path}`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(body),
+        }),
+      );
+      expect(res.status).toBe(401);
+    });
+  }
+
   test("rejects requests without an Authorization header", async () => {
     const db = testDb();
     const app = buildApp(db, testEnv());

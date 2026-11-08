@@ -13,7 +13,13 @@
     "ground_floor_or_balcony": false
   },
   "locations": [
-    { "city": "Frankfurt am Main", "radius_km": 0 },
+    {
+      "city": "Frankfurt am Main",
+      "radius_km": 0,
+      "allowed_districts": [],
+      "excluded_districts": [],
+      "preferred_districts": []
+    },
     { "city": "Neu-Isenburg",      "radius_km": 0 },
     { "city": "Idstein",           "radius_km": 0 }
   ],

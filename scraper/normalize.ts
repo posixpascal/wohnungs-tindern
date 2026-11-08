@@ -1,5 +1,6 @@
 // Raw portal record -> Listing (unscored) plus hard-criteria checks.
 
+import { canonicalDistrict, districtInText, districtReason } from "./districts";
 import { costFromText, exclusionReason, floorFromText, hasBalcony, hasBathtub, hasGarden, shortTermRental } from "./detect";
 import { cleanText, parseFloor, parseNumber, parseRooms } from "./parse";
 import { largeImages } from "./images";
@@ -54,20 +55,40 @@ export function resolveCity(texts: readonly (string | undefined)[], config: Conf
   return null;
 }
 
-function resolveDistrict(r: RawRecord, loc: Location): string | null {
+const isCityName = (text: string, loc: Location): boolean =>
+  aliases(loc.city).some((a) => a.toLowerCase() === text.toLowerCase());
+
+/**
+ * Portal district field, else a known district (config/districts, district lists) in location/address,
+ * else parsed from the location, else a known district in the title (least reliable: "Nähe Bornheim").
+ */
+function rawDistrict(r: RawRecord, loc: Location): string | null {
   const explicit = cleanText(r.district, 100);
-  if (explicit && !aliases(loc.city).some((a) => a.toLowerCase() === explicit.toLowerCase())) return explicit;
-  const text = [r.location, r.address, r.title].filter(Boolean).join(" ");
-  const preferred = loc.preferred_districts.find((d) => lastIndexOf(text, [d]) >= 0);
-  if (preferred) return preferred;
-  return districtFromLocation(r.location ?? "", loc);
+  if (explicit && !isCityName(explicit, loc)) return explicit;
+  return (
+    districtInText([r.location, r.address].filter(Boolean).join(" "), loc) ??
+    districtFromLocation(r.location ?? "", loc) ??
+    districtInText(r.title, loc)
+  );
 }
 
-/** "Straße 1, Zeilsheim, Frankfurt am Main (65931)" -> Zeilsheim; "Frankfurt am Main Griesheim, …" -> Griesheim. */
+/** Canonical district name (config/districts aliases), so every portal stores "Gallus" for "Gallusviertel". */
+function resolveDistrict(r: RawRecord, loc: Location): string | null {
+  const raw = rawDistrict(r, loc);
+  return raw === null ? null : canonicalDistrict(raw, loc);
+}
+
+/** Kleinanzeigen's "60316 Nordend": the place after the postcode, unless it is the city itself. */
+function districtAfterPostcode(location: string, loc: Location): string | null {
+  const place = location.match(/^\s*\d{5}\s+([^,\d]{2,40})$/)?.[1]?.trim();
+  return place && !isCityName(place, loc) ? place : null;
+}
+
+/** "Straße 1, Zeilsheim, Frankfurt am Main (65931)" -> Zeilsheim; "Frankfurt am Main Griesheim, …" -> Griesheim; "60316 Nordend" -> Nordend. */
 function districtFromLocation(location: string, loc: Location): string | null {
   const parts = location.split(",").map((p) => p.trim());
   const idx = parts.findIndex((p) => lastIndexOf(p, aliases(loc.city)) >= 0);
-  if (idx < 0) return null;
+  if (idx < 0) return districtAfterPostcode(location, loc);
   const rest = aliases(loc.city)
     .reduce((s, a) => s.replace(wordRe(a), ""), parts[idx] ?? "")
     .replace(/\(?\d{5}\)?|\bHessen\b|(^|\s)-(\s|$)/g, " ")
@@ -200,9 +221,22 @@ export function normalize(r: RawRecord, config: Config, now: string): NormalizeR
   };
 }
 
+export interface CriteriaOptions {
+  /** candidates.ts: an unknown district passes a whitelist so the detail page can tell. */
+  readonly unknownDistrictPasses?: boolean;
+  /** rescore.ts: the district filter is left to the app queue, so un-excluding brings listings back. */
+  readonly ignoreDistrict?: boolean;
+}
+
 /** Hard criteria on a normalized listing; returns a German reason or null. */
-export function criteriaReason(l: Listing, config: Config): string | null {
+export function criteriaReason(
+  l: Listing,
+  config: Config,
+  { unknownDistrictPasses = false, ignoreDistrict = false }: CriteriaOptions = {},
+): string | null {
   if (!config.portals.includes(l.portal)) return "Portal nicht aktiviert";
+  const district = ignoreDistrict ? null : districtReason(l, config.locations, unknownDistrictPasses);
+  if (district) return district;
   const implausible = plausibilityReason(l);
   if (implausible) return implausible;
   if (l.rent_warm === null) return "Miete unbekannt";

@@ -2,7 +2,7 @@
 // Writes reports/YYYY-MM-DD.md (German) and prints its path.
 
 import type { Database } from "bun:sqlite";
-import { REPORTS_DIR } from "./config";
+import { CONFIG_PATH, readSelection, REPORTS_DIR, selectionNote, selectionPathFor } from "./config";
 import { openDb, queryListings } from "./db";
 import { cutoffIso, DEFAULT_SWEEP_DAYS } from "./sweep";
 import type { Listing } from "./types";
@@ -122,6 +122,12 @@ async function main(): Promise<void> {
     const data = collectReport(db, new Date().toISOString(), gone);
     const path = `${REPORTS_DIR}/${data.day}.md`;
     await Bun.write(path, renderReport(data));
+    // the report itself doesn't depend on the selection: a broken cache file is only mentioned
+    const selection = await readSelection(selectionPathFor(CONFIG_PATH)).catch((err: unknown) => {
+      console.error(`district selection unreadable: ${err instanceof Error ? err.message : String(err)}`);
+      return null;
+    });
+    console.error(selectionNote(selection));
     console.log(path);
   } finally {
     db.close();

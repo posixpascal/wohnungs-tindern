@@ -11,6 +11,7 @@ import { isValidIngestToken, readEnvValue } from "./env-file";
 
 const ROOT = resolve(import.meta.dir, "..");
 const APP_URL_TIMEOUT_MS = 2_000;
+const DOCKER_TIMEOUT_MS = 5_000;
 const DEFAULT_APP_DB = "./data/wohnung.sqlite";
 
 export type Status = "ok" | "warn" | "fail";
@@ -117,10 +118,44 @@ export function isLocalUrl(url: string | undefined): boolean {
   }
 }
 
-function checkUsers(envText: string): Check {
+/** Usernames from `wohnung user list` output (tab-separated: id, name, created, swipes, sessions). */
+export function parseUserList(output: string): readonly string[] {
+  return output
+    .split(/\r?\n/)
+    .map((line) => line.split("\t"))
+    .filter((cols) => cols.length >= 5)
+    .map((cols) => cols[1] ?? "");
+}
+
+/** Runs `docker compose <args>` in the repo; null when docker is missing, fails or times out. */
+function dockerCompose(args: readonly string[]): string | null {
+  if (!Bun.which("docker")) return null;
+  try {
+    const result = Bun.spawnSync(["docker", "compose", ...args], { cwd: ROOT, timeout: DOCKER_TIMEOUT_MS });
+    return result.exitCode === 0 ? result.stdout.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+/** True when the compose service `app` is running (the app then lives in the Docker volume). */
+function isDockerAppRunning(): boolean {
+  return (dockerCompose(["ps", "--status", "running", "--services"]) ?? "").split(/\r?\n/).includes("app");
+}
+
+function checkDockerUsers(): Check {
+  const fix = "bun run docker:user <name> (once per person, in your own terminal)";
+  const output = dockerCompose(["exec", "-T", "app", "wohnung", "user", "list"]);
+  if (output === null) return warn("app users", "cannot list users in the Docker app", "bun run docker:logs");
+  const users = parseUserList(output);
+  return users.length > 0 ? ok("app users", `${users.join(", ")} (Docker)`) : warn("app users", "none (Docker)", fix);
+}
+
+function checkUsers(envText: string, dockerApp: boolean): Check {
   if (!isLocalUrl(readEnvValue(envText, "WOHNUNG_URL"))) {
     return ok("app users", "app is deployed (WOHNUNG_URL); manage users on the server with the wohnung-users skill");
   }
+  if (dockerApp) return checkDockerUsers();
   const configured = readEnvValue(envText, "DB_PATH") || DEFAULT_APP_DB;
   const dbPath = isAbsolute(configured) ? configured : resolve(ROOT, configured);
   const fix = "bun run user <name> (once per person, in your own terminal)";
@@ -147,15 +182,22 @@ export function displayUrl(url: string): string {
   }
 }
 
-async function checkApp(envText: string): Promise<Check> {
+/** Next step for an unreachable app: local -> start it (Docker if installed), remote -> server skill. */
+export function appFix(url: string, hasDocker: boolean): string {
+  if (!isLocalUrl(url)) return "check the server with the wohnung-server skill";
+  return hasDocker
+    ? "bun run docker:up (runs in the background) or bun run dev (keep it running in a second terminal)"
+    : "bun run dev (keep it running in a second terminal)";
+}
+
+async function checkApp(envText: string, dockerApp: boolean): Promise<Check> {
   const url = readEnvValue(envText, "WOHNUNG_URL");
   if (!url) return warn("app", "WOHNUNG_URL not set, push will be skipped", "set WOHNUNG_URL in .env");
   try {
     await fetch(url, { signal: AbortSignal.timeout(APP_URL_TIMEOUT_MS), redirect: "manual" });
-    return ok("app", `reachable at ${displayUrl(url)}`);
+    return ok("app", `reachable at ${displayUrl(url)}${dockerApp ? " (Docker)" : ""}`);
   } catch {
-    const fix = isLocalUrl(url) ? "bun run dev (keep it running in a second terminal)" : "check the server with the wohnung-server skill";
-    return warn("app", `not reachable at ${displayUrl(url)} (needed for push)`, fix);
+    return warn("app", `not reachable at ${displayUrl(url)} (needed for push)`, appFix(url, Bun.which("docker") !== null));
   }
 }
 
@@ -168,7 +210,8 @@ function checkNpx(): Check {
 export async function runChecks(): Promise<readonly Check[]> {
   const envText = readText(join(ROOT, ".env"));
   const { check: configCheck, config } = await checkConfig();
-  const optional = envText === undefined ? [] : [checkUsers(envText), await checkApp(envText)];
+  const dockerApp = envText !== undefined && isLocalUrl(readEnvValue(envText, "WOHNUNG_URL")) && isDockerAppRunning();
+  const optional = envText === undefined ? [] : [checkUsers(envText, dockerApp), await checkApp(envText, dockerApp)];
   return [
     ok("bun", Bun.version),
     checkDeps(),

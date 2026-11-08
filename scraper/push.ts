@@ -54,27 +54,33 @@ export function toPayload(l: Listing): Payload {
 const chunk = <T>(items: readonly T[], size: number): T[][] =>
   Array.from({ length: Math.ceil(items.length / size) }, (_, i) => items.slice(i * size, (i + 1) * size));
 
-async function sendBatch(env: PushEnv, batch: readonly Listing[], fetchFn: FetchFn): Promise<void> {
-  const url = new URL("api/ingest", env.baseUrl.endsWith("/") ? env.baseUrl : `${env.baseUrl}/`).toString();
+/** POSTs `body` with the bearer token to `${WOHNUNG_URL}/<path>`; returns the envelope's data or throws with the server's error. */
+export async function postJson(env: PushEnv, path: string, body: unknown, fetchFn: FetchFn): Promise<unknown> {
+  const url = new URL(path, env.baseUrl.endsWith("/") ? env.baseUrl : `${env.baseUrl}/`).toString();
   const res = await fetchFn(url, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${env.token}` },
-    body: JSON.stringify({ listings: batch.map(toPayload) }),
+    body: JSON.stringify(body),
     redirect: "error", // never re-send the bearer token to a redirect target
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });
   const text = await res.text();
-  let body: unknown = null;
+  let parsed: unknown = null;
   try {
-    body = JSON.parse(text);
+    parsed = JSON.parse(text);
   } catch {
     // handled below
   }
-  const envelope = body as { success?: unknown; error?: unknown } | null;
+  const envelope = parsed as { success?: unknown; data?: unknown; error?: unknown } | null;
   const serverError = typeof envelope?.error === "string" ? envelope.error : text.slice(0, 200);
   if (!res.ok) throw new Error(`server responded ${res.status}: ${serverError}`);
-  if (envelope?.success === false) throw new Error(`server rejected batch: ${serverError}`);
+  if (envelope?.success === false) throw new Error(`server rejected request: ${serverError}`);
   if (envelope?.success !== true) throw new Error(`unexpected response: ${text.slice(0, 200)}`);
+  return envelope.data;
+}
+
+async function sendBatch(env: PushEnv, batch: readonly Listing[], fetchFn: FetchFn): Promise<void> {
+  await postJson(env, "api/ingest", { listings: batch.map(toPayload) }, fetchFn);
 }
 
 /** Pushes all pending listings; marks each batch synced right after it succeeded. */

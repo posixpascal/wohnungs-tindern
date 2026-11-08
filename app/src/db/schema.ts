@@ -30,6 +30,37 @@ CREATE TABLE IF NOT EXISTS swipes (
 );
 
 CREATE INDEX IF NOT EXISTS swipes_listing_idx ON swipes (listing_id);
+
+-- Single shared row (id = 1): who "wir" are in generated inquiry texts.
+CREATE TABLE IF NOT EXISTS inquiry_profile (
+  id         INTEGER PRIMARY KEY CHECK (id = 1),
+  about      TEXT NOT NULL DEFAULT '',
+  signature  TEXT NOT NULL DEFAULT '',
+  updated_at TEXT NOT NULL
+);
+
+-- District settings: metadata pushed by the scraper (scraper/settings.ts) and
+-- the group's shared selection per city, edited on the settings page.
+-- JSON columns hold string arrays / a highlights object.
+CREATE TABLE IF NOT EXISTS districts (
+  city       TEXT NOT NULL,
+  name       TEXT NOT NULL,
+  position   INTEGER NOT NULL,
+  aliases    TEXT NOT NULL DEFAULT '[]',
+  summary    TEXT,
+  highlights TEXT NOT NULL DEFAULT '{}',
+  PRIMARY KEY (city, name)
+);
+
+CREATE TABLE IF NOT EXISTS district_settings (
+  city                TEXT PRIMARY KEY,
+  position            INTEGER NOT NULL,
+  allowed_districts   TEXT NOT NULL DEFAULT '[]',
+  excluded_districts  TEXT NOT NULL DEFAULT '[]',
+  preferred_districts TEXT NOT NULL DEFAULT '[]',
+  updated_at          TEXT NOT NULL,
+  updated_by          TEXT
+);
 `;
 
 export const fullSchema = `${listingsSchema}\n${appSchema}`;

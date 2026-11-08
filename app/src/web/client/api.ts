@@ -1,11 +1,11 @@
-import type { Envelope, Listing, LikedListing } from "./types";
+import type { Envelope, Listing, LikedListing, Inquiry, InquiryProfile, InquiryProfileState } from "./types";
 
 export class ApiError extends Error {}
 
 // Paths that handle their own 401s (the initial session probe, and login
 // itself — a wrong password is a 401 too, and must not be treated as "the
 // session expired, go to the login view" mid-submit).
-const NO_REDIRECT_ON_401 = new Set(["/api/login", "/api/me"]);
+const NO_REDIRECT_ON_401 = new Set(["/api/login", "/api/me", "/api/settings/districts"]);
 
 let onUnauthorized: (() => void) | null = null;
 
@@ -15,7 +15,7 @@ export function setUnauthorizedHandler(handler: () => void): void {
   onUnauthorized = handler;
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
     credentials: "same-origin",
     headers: { "Content-Type": "application/json" },
@@ -49,4 +49,9 @@ export const api = {
     request<{ deleted: boolean }>(`/api/swipes/${encodeURIComponent(listingId)}`, { method: "DELETE" }),
   matches: () => request<Listing[]>("/api/matches"),
   likes: () => request<LikedListing[]>("/api/likes"),
+  inquiryProfile: () => request<InquiryProfileState>("/api/inquiry/profile"),
+  saveInquiryProfile: (profile: InquiryProfile) =>
+    request<InquiryProfile>("/api/inquiry/profile", { method: "PUT", body: JSON.stringify(profile) }),
+  inquiry: (listingId: string) =>
+    request<Inquiry>(`/api/listings/${encodeURIComponent(listingId)}/inquiry`, { method: "POST", body: "{}" }),
 };

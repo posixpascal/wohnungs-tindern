@@ -11,6 +11,7 @@ export function testEnv(overrides: Partial<AppEnv> = {}): AppEnv {
     ingestToken: "test-ingest-token-32-characters!!",
     cookieSecure: false,
     trustProxy: false,
+    inquiry: null,
     ...overrides,
   };
 }

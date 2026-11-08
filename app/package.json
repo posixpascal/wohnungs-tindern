@@ -12,6 +12,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@ai-sdk/openai-compatible": "^3.0.87",
+    "ai": "^7.0.165",
     "elysia": "^1.1.26"
   },
   "devDependencies": {

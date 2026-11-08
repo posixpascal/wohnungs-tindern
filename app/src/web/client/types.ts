@@ -33,3 +33,14 @@ export type LikedListing = Listing & { others: OtherDecision[] };
 export type Envelope<T> =
   | { success: true; data: T; error: null }
   | { success: false; data: null; error: string };
+
+export type InquiryProfile = { about: string; signature: string };
+
+export type InquiryProfileState = InquiryProfile & { llm: string | null };
+
+export type Inquiry = {
+  text: string;
+  source: "llm" | "template";
+  model: string | null;
+  warning: string | null;
+};
