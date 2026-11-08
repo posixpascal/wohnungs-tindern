@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Flat-hunting tool for two people. A coding agent drives a headed Playwright browser over ImmoScout24, immowelt, Kleinanzeigen and WG-Gesucht; `scraper/` (Bun + SQLite) filters, scores and stores the listings and pushes them to `app/`, an Elysia swipe app where a listing liked by every user is a match. See README.md for the full picture.
+Flat-hunting tool for any number of people. A coding agent drives a headed Playwright browser over ImmoScout24, immowelt, Kleinanzeigen and WG-Gesucht; `scraper/` (Bun + SQLite) filters, scores and stores the listings and pushes them to `app/`, an Elysia swipe app where a listing liked by every user is a match. See README.md (German overview) and docs/reference.md (technical reference).
 
 ## Layout
 

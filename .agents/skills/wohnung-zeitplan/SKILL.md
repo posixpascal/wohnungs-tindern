@@ -7,14 +7,14 @@ description: Schedules the daily unattended search (bun run scrape:headless) —
 
 Run from the repository root. The job runs `bun run scrape:headless` (the `wohnung-suche` skill in
 headless mode via `SCRAPE_HEADLESS_CMD`; for Codex or another agent set the override in `.env`,
-see README "Daily use"). Headless runs never wait: a portal showing a
+see docs/reference.md "Daily use"). Headless runs never wait: a portal showing a
 captcha is skipped for the day and named in the report.
 
 ## 1. Preconditions (check, explain in German)
 
 - **Permissions**: unattended runs can't answer permission prompts. Claude Code: the committed
   `.claude/settings.json` already allows the `playwright` server from `.mcp.json` and
-  `bun scraper/*` (see README "Headless runs: permissions"); if the user's Playwright server has
+  `bun scraper/*` (see docs/reference.md "Headless runs: permissions"); if the user's Playwright server has
   another name, they add it to `.claude/settings.local.json`. Codex: `--full-auto` + network
   access for the push. Without it the job hangs or does nothing.
 - **Push target**: the run pushes to `WOHNUNG_URL` from `.env`. With the local default the app

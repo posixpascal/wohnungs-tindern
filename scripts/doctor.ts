@@ -87,7 +87,7 @@ async function checkConfig(): Promise<{ readonly check: Check; readonly config?:
       : ok("config", `valid (${summary})`);
     return { check, config };
   } catch (err) {
-    return { check: fail("config", (err as Error).message, "fix config/search.json (see README: Configuration)") };
+    return { check: fail("config", (err as Error).message, "fix config/search.json (see docs/reference.md: Configuration)") };
   }
 }
 

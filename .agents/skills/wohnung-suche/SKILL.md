@@ -1,6 +1,6 @@
 ---
 name: wohnung-suche
-description: Sucht Mietwohnungen für euch zwei auf ImmoScout24, immowelt (inkl. immonet), Kleinanzeigen und WG-Gesucht (nur Wohnungen) per Playwright, speichert Treffer in der lokalen SQLite-DB, pusht sie zur Swipe-App und schreibt den Tagesreport. Use when the user says "wohnung suchen", "wohnungssuche", "neue wohnungen", "wohnungen checken", "daily report", "tagesreport wohnungen" or runs /wohnung-suche (daily cron, e.g. `claude -p "/wohnung-suche headless"` or `codex exec "Use the wohnung-suche skill in headless mode"`).
+description: Sucht Mietwohnungen für eure Gruppe auf ImmoScout24, immowelt (inkl. immonet), Kleinanzeigen und WG-Gesucht (nur Wohnungen) per Playwright, speichert Treffer in der lokalen SQLite-DB, pusht sie zur Swipe-App und schreibt den Tagesreport. Use when the user says "wohnung suchen", "wohnungssuche", "neue wohnungen", "wohnungen checken", "daily report", "tagesreport wohnungen" or runs /wohnung-suche (daily cron, e.g. `claude -p "/wohnung-suche headless"` or `codex exec "Use the wohnung-suche skill in headless mode"`).
 ---
 
 # Wohnungssuche
