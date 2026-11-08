@@ -1,0 +1,6 @@
+[Unit]
+Description=Restart wohnung-finden after a new binary was deployed
+
+[Service]
+Type=oneshot
+ExecStart=/bin/systemctl restart wohnung.service

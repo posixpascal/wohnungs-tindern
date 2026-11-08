@@ -1,0 +1,9 @@
+[Unit]
+Description=Watch the wohnung binary and trigger a restart on deploy
+
+[Path]
+PathChanged=/opt/wohnung/wohnung
+Unit=wohnung-restart.service
+
+[Install]
+WantedBy=multi-user.target

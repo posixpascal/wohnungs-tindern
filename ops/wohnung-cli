@@ -1,0 +1,76 @@
+#!/bin/sh
+# Run the wohnung CLI as the service user with the service env.
+# Usage: wohnung-cli user add <name> | user passwd <name> | user remove <name>
+#      | user list | backup <path>
+#
+# Runs via a transient systemd unit (same User/Group/EnvironmentFile as
+# wohnung.service) instead of sourcing /etc/wohnung.env as shell - that file
+# is systemd EnvironmentFile syntax (KEY=value, no shell expansion/quoting),
+# not safe to `.` source.
+#
+# `user add` and `user passwd` read a new password from stdin. `systemd-run
+# --pipe` connects stdin through to the transient unit, but it does not hand
+# a real TTY through it, so the app's own hidden-prompt detection
+# (`process.stdin.isTTY`) never fires there. When this wrapper itself is run
+# from a terminal (e.g. `ssh -t ... sudo wohnung-cli user add alex`), it does
+# the hidden double prompt here instead and pipes the result in as a single
+# line, matching what the app reads when stdin is piped. Any other command
+# (including `user add`/`user passwd` when stdin is already piped, e.g. from
+# a script) passes stdin through unchanged.
+set -eu
+
+run() {
+  systemd-run --quiet --pipe --wait --collect \
+    -p User=wohnung \
+    -p Group=wohnung \
+    -p EnvironmentFile=/etc/wohnung.env \
+    -p StateDirectory=wohnung -p StateDirectoryMode=0700 \
+    /opt/wohnung/wohnung "$@"
+}
+
+needs_password_prompt() {
+  [ "${1:-}" = "user" ] || return 1
+  case "${2:-}" in
+    add | passwd) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+# Reads one line with echo off. Echo is restored by the caller's traps on
+# Ctrl-C/TERM/exit; `read` and `printf` are shell builtins, so the password
+# never appears in any process's argv or environment.
+read_hidden() {
+  stty -echo
+  printf '%s' "$1" >&2
+  IFS= read -r REPLY || :
+  stty "$stty_orig"
+  printf '\n' >&2
+}
+
+if [ -t 0 ] && needs_password_prompt "${1:-}" "${2:-}"; then
+  stty_orig=$(stty -g)
+  trap 'stty "$stty_orig"' EXIT
+  # Without the explicit exit, sh resumes after the handler and shows the
+  # next prompt instead of aborting.
+  trap 'stty "$stty_orig"; printf "\n" >&2; exit 130' INT
+  trap 'stty "$stty_orig"; exit 143' TERM
+
+  read_hidden 'Passwort: '
+  password1=$REPLY
+  read_hidden 'Wiederholen: '
+  password2=$REPLY
+
+  if [ "$password1" != "$password2" ]; then
+    echo "Passwords do not match" >&2
+    exit 1
+  fi
+  if [ -z "$password1" ]; then
+    echo "Password must not be empty" >&2
+    exit 1
+  fi
+
+  printf '%s\n' "$password1" | run "$@"
+  exit
+fi
+
+run "$@"

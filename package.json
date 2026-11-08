@@ -1,0 +1,24 @@
+{
+  "name": "wohnung-finden",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "setup": "bun scripts/setup.ts",
+    "doctor": "bun scripts/doctor.ts",
+    "dev": "cd app && bun --env-file=../.env run dev",
+    "users": "cd app && bun --env-file=../.env src/index.ts user list",
+    "user": "cd app && bun --env-file=../.env src/index.ts user add",
+    "passwd": "cd app && bun --env-file=../.env src/index.ts user passwd",
+    "user-remove": "cd app && bun --env-file=../.env src/index.ts user remove",
+    "test": "bun run test:app && bun run test:scraper",
+    "test:app": "cd app && bun run build:web && bun test --timeout 30000",
+    "test:scraper": "bun test ./scraper ./scripts",
+    "typecheck": "cd app && bun run typecheck && bun x tsc -p ../scraper/tsconfig.json && bun x tsc -p ../scripts/tsconfig.json",
+    "build": "cd app && bun run build",
+    "scrape": "bun scripts/scrape.ts",
+    "scrape:headless": "bun scripts/scrape.ts --headless",
+    "push": "bun scraper/push.ts",
+    "report": "bun scraper/report.ts",
+    "rescore": "bun scraper/rescore.ts"
+  }
+}

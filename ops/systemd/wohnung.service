@@ -1,0 +1,52 @@
+[Unit]
+Description=wohnung-finden server
+After=network.target
+
+[Service]
+Type=simple
+User=wohnung
+Group=wohnung
+StateDirectory=wohnung
+WorkingDirectory=/opt/wohnung
+ExecStart=/opt/wohnung/wohnung serve
+EnvironmentFile=/etc/wohnung.env
+Restart=on-failure
+RestartSec=2
+
+# Hardening
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+RestrictNamespaces=yes
+LockPersonality=yes
+# Not MemoryDenyWriteExecute: Bun/JSC's JIT needs W+X memory pages.
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+ProtectClock=yes
+ProtectHostname=yes
+ProtectKernelLogs=yes
+ProtectProc=invisible
+ProcSubset=pid
+RemoveIPC=yes
+UMask=0077
+StateDirectoryMode=0700
+MemoryMax=512M
+TasksMax=64
+CapabilityBoundingSet=
+AmbientCapabilities=
+
+# StateDirectory=wohnung creates /var/lib/wohnung owned by the wohnung user.
+# DB_PATH in /etc/wohnung.env must point inside it, e.g.:
+#   DB_PATH=/var/lib/wohnung/wohnung.sqlite
+
+[Install]
+WantedBy=multi-user.target

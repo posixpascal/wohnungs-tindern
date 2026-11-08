@@ -1,0 +1,23 @@
+[Unit]
+Description=Snapshot the wohnung-finden DB (VACUUM INTO)
+
+[Service]
+Type=oneshot
+User=wohnung
+Group=wohnung
+EnvironmentFile=/etc/wohnung.env
+StateDirectory=wohnung
+StateDirectoryMode=0700
+ExecStartPre=/bin/rm -f /var/lib/wohnung/backup.sqlite.tmp
+ExecStart=/opt/wohnung/wohnung backup /var/lib/wohnung/backup.sqlite.tmp
+ExecStartPost=/bin/mv -f /var/lib/wohnung/backup.sqlite.tmp /var/lib/wohnung/backup.sqlite
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+ReadWritePaths=/var/lib/wohnung

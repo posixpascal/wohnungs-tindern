@@ -1,0 +1,14 @@
+node_modules/
+dist/
+data/
+.env
+.env.*
+!.env.example
+*.sqlite
+*.sqlite-*
+.playwright-mcp/
+deploy.mk
+backups/
+reports/
+config/search.json
+.claude/settings.local.json

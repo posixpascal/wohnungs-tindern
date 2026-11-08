@@ -1,0 +1,7 @@
+{
+  "enabledMcpjsonServers": ["playwright"],
+  "permissions": {
+    "allow": ["mcp__playwright", "Bash(bun scraper/*)", "Bash(bun run doctor)"],
+    "deny": ["Read(./.env)"]
+  }
+}

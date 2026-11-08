@@ -1,0 +1,21 @@
+{
+  "budget": {
+    "warm_max": 1200,
+    "nebenkosten_estimate_per_sqm": 3.0
+  },
+  "rooms": { "min": 2, "ideal": 3 },
+  "area_sqm": { "min": 50, "ideal_min": 70, "ideal_max": 100 },
+  "preferences": {
+    "amenities": ["balcony"],
+    "ground_floor": false
+  },
+  "requirements": {
+    "ground_floor_or_balcony": false
+  },
+  "locations": [
+    { "city": "Frankfurt am Main", "radius_km": 0 },
+    { "city": "Neu-Isenburg",      "radius_km": 0 },
+    { "city": "Idstein",           "radius_km": 0 }
+  ],
+  "portals": ["immoscout24", "immowelt", "kleinanzeigen", "wg-gesucht"]
+}

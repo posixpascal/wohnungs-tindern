@@ -1,0 +1,923 @@
+:root {
+  --bg: #f5f5f0;
+  --fg: #1f2430;
+  --card-bg: #ffffff;
+  --muted: #6b7280;
+  --accent: #e0457b;
+  --accent-ok: #35b06f;
+  --border: #e5e7eb;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14161c;
+    --fg: #f1f1ef;
+    --card-bg: #1f2430;
+    --muted: #9aa0ad;
+    --border: #2c313d;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  /* Fit exactly in the viewport (not min-height: the shell must never grow
+     taller than the screen, or .app-content's overflow-y:auto below can't
+     actually kick in — see .app-content for why that matters). vh first as
+     a fallback for browsers without dvh support. */
+  height: 100vh;
+  height: 100dvh;
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* Visually hidden but still reachable by keyboard/screen readers — used
+   for controls that have an obvious visual equivalent (e.g. tapping the
+   image to open the gallery) but no keyboard affordance otherwise. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Header */
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.app-header-user {
+  font-weight: 600;
+}
+
+.link-button {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 0.9rem;
+  cursor: pointer;
+  padding: 0.25rem 0;
+}
+
+.app-content {
+  flex: 1;
+  /* Classic flexbox trap: a flex item's default min-height is `auto`,
+     which means it never shrinks below its content's intrinsic height —
+     so overflow-y: auto here was a no-op whenever the content (e.g. the
+     swipe card) wanted more room than the viewport had. That let the
+     whole #app shell grow past 100vh, pushing the tab bar off-screen and
+     requiring an outer page scroll to reach anything below the fold
+     (including the card's portal link). min-height: 0 lets this actually
+     clip+scroll instead of growing. */
+  min-height: 0;
+  overflow-y: auto;
+  position: relative;
+}
+
+/* Tab bar */
+.tab-bar {
+  display: flex;
+  border-top: 1px solid var(--border);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.tab-button {
+  flex: 1;
+  padding: 0.85rem 0;
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.tab-button.tab-active {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* Login */
+.login-view {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+.login-form {
+  width: 100%;
+  max-width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.login-title {
+  text-align: center;
+  margin-bottom: 0.5rem;
+}
+
+.input {
+  padding: 0.75rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  color: var(--fg);
+  font-size: 1rem;
+}
+
+.button-primary {
+  padding: 0.8rem;
+  border-radius: 10px;
+  border: none;
+  background: var(--accent);
+  color: white;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.form-error {
+  color: #d33;
+  font-size: 0.85rem;
+}
+
+/* Swipe view */
+.swipe-view {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  padding: 1rem;
+  gap: 1rem;
+}
+
+.card-stack {
+  position: relative;
+  width: 100%;
+  max-width: 420px;
+  flex: 1;
+  /* No min-height floor: .card-slot children are position: absolute (see
+     below), so this has zero in-flow content and flex:1 alone sizes it to
+     exactly whatever's left after the status line and controls — the
+     right behavior on both a 390×844 and a cramped 375×667 viewport. A
+     fixed min-height here previously forced overflow (and a page scroll
+     that hid the controls) on shorter screens once the position bug below
+     was fixed. */
+}
+
+/* `.card-slot` and `.card` are classes on the *same* element — renderCard()
+   returns the `.card` article, and views/swipe.ts adds `.card-slot` to it —
+   and `.card` below also sets `position`. Both selectors have equal
+   specificity, so whichever rule comes later in the stylesheet used to win
+   regardless of intent: `.card { position: relative }` was overriding
+   this, so cards stacked in normal flow (vertically) instead of absolutely
+   on top of each other, pushing the controls off-screen. `.card.card-slot`
+   outranks a bare `.card`. */
+.card.card-slot {
+  position: absolute;
+  inset: 0;
+  /* Let the browser handle vertical gestures natively (scrolling the card
+     back); horizontal swipe gestures are handled entirely by our own
+     pointer event listeners. */
+  touch-action: pan-y;
+}
+
+/* The cards underneath the top one sit slightly scaled down, so the stack
+   reads as a deck rather than a flat overlap. This is a *class* rule
+   (transform + transition) applied only to the non-top slots — the top
+   card's transform is driven entirely by inline styles from JS (1:1 with
+   the finger while dragging), and must never get a CSS transition or it
+   would lag behind the touch instead of tracking it. */
+.card.card-slot:not(:last-child) {
+  transform: scale(0.95);
+  transition: transform 180ms ease-out;
+}
+
+/* The card is a two-sided flip: photos on the front, all details on the
+   back. Drag transforms (inline, from JS) stay on .card; the flip rotates
+   .card-inner, so the two never overwrite each other. The faces carry the
+   visible card look because overflow: hidden on a preserve-3d parent would
+   flatten the 3D flip. */
+.card {
+  height: 100%;
+  position: relative;
+  user-select: none;
+  perspective: 1400px;
+}
+
+.card-inner {
+  position: relative;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform 450ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.card-flipped .card-inner {
+  transform: rotateY(180deg);
+}
+
+.card-face {
+  position: absolute;
+  inset: 0;
+  background: var(--card-bg);
+  border-radius: 16px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+  /* keeps the rounded clip while iOS composites the rotating face */
+  isolation: isolate;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
+.card-back {
+  transform: rotateY(180deg);
+  display: flex;
+  flex-direction: column;
+}
+
+/* A face hidden by backface-visibility still catches taps in some engines:
+   only the visible side may receive pointer events. */
+.card-back,
+.card-flipped .card-front {
+  pointer-events: none;
+}
+
+.card-flipped .card-back {
+  pointer-events: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-inner {
+    transition: none;
+  }
+}
+
+/* Front: the photos fill the whole card. */
+.card-front .carousel {
+  position: absolute;
+  inset: 0;
+  aspect-ratio: auto;
+}
+
+/* Dots/counter move to the top: the bottom belongs to the text overlay. */
+.card-front .carousel-indicator {
+  top: 0.75rem;
+  bottom: auto;
+}
+
+/* Title, rent and facts on a gradient, readable on any photo. Purely visual
+   (pointer-events: none): taps on it reach the carousel underneath like
+   anywhere else on the photo. */
+.card-overlay {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 3rem 1rem 0.9rem;
+  color: #fff;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.8) 0%, rgba(0, 0, 0, 0.55) 55%, transparent 100%);
+  pointer-events: none;
+}
+
+.card-overlay .card-title {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+.card-overlay .facts-line {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.card-overlay .partner-hint {
+  color: #ffd166;
+}
+
+.card-flip-button {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.6rem;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  cursor: pointer;
+}
+
+.card-back .card-flip-button {
+  background: var(--accent);
+}
+
+.card-flip-icon {
+  width: 24px;
+  height: 24px;
+}
+
+/* Back: everything about the listing, scrollable. Leaves room on the right
+   of the title for the flip button. */
+.card-back-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0.9rem 1rem 1.25rem;
+  /* A scroll container ends the touch-action chain: without repeating pan-y
+     here, a horizontal drag on the text is claimed by the browser
+     (pointercancel) and never swipes the card. */
+  touch-action: pan-y;
+  overscroll-behavior: contain;
+}
+
+.card-back-body > .card-title {
+  padding-right: 3rem;
+}
+
+.card-back .detail-grid {
+  padding: 0.85rem 0 0;
+}
+
+.card-back .description {
+  margin-top: 1rem;
+}
+
+.carousel {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  background: #000;
+  flex-shrink: 0;
+}
+
+/* Vertical page scroll stays native; horizontal swipes page the images. */
+.carousel-swipeable {
+  touch-action: pan-y pinch-zoom;
+}
+
+.card-image,
+.gallery-image,
+.thumb {
+  -webkit-user-drag: none;
+  -webkit-touch-callout: none;
+  user-select: none;
+}
+
+.card-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.card-image-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  color: var(--muted);
+  background: var(--border);
+  height: 100%;
+  font-size: 0.85rem;
+}
+
+.placeholder-icon {
+  width: 40px;
+  height: 40px;
+}
+
+.carousel-indicator {
+  position: absolute;
+  bottom: 0.5rem;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+}
+
+.carousel-dots {
+  display: flex;
+  gap: 0.3rem;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.dot-active {
+  background: white;
+}
+
+.carousel-counter {
+  background: rgba(0, 0, 0, 0.55);
+  color: white;
+  font-size: 0.75rem;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+}
+
+.card-title {
+  margin: 0 0 0.35rem;
+  font-size: 1.1rem;
+}
+
+.rent-line {
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.facts-line,
+.list-item-score {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin-top: 0.15rem;
+}
+
+.badges {
+  display: flex;
+  gap: 0.4rem;
+  margin: 0.4rem 0;
+}
+
+.badge {
+  background: var(--border);
+  border-radius: 999px;
+  padding: 0.15rem 0.6rem;
+  font-size: 0.8rem;
+}
+
+.partner-hint {
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--accent);
+}
+
+.description {
+  font-size: 0.9rem;
+  color: var(--muted);
+  margin: 0.5rem 0 0;
+}
+
+.description-md {
+  white-space: normal;
+  color: var(--fg);
+}
+
+.md-heading {
+  margin: 0.9rem 0 0.25rem;
+  font-size: 0.95rem;
+}
+
+.md-heading:first-child,
+.md-paragraph:first-child {
+  margin-top: 0;
+}
+
+.md-paragraph {
+  margin: 0.5rem 0 0;
+  line-height: 1.45;
+}
+
+.md-list {
+  margin: 0.35rem 0 0;
+  padding-left: 1.2rem;
+  line-height: 1.45;
+}
+
+.md-rule {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 0.75rem 0;
+}
+
+.description-empty {
+  font-style: italic;
+}
+
+.portal-link-small {
+  display: inline-block;
+  margin-top: 0.5rem;
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.portal-link-button {
+  display: inline-block;
+  margin-top: 0.5rem;
+  background: var(--accent);
+  color: white;
+  text-decoration: none;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0.45rem 0.9rem;
+  border-radius: 999px;
+}
+
+.stamp {
+  position: absolute;
+  top: 1.5rem;
+  padding: 0.3rem 0.8rem;
+  border: 3px solid;
+  border-radius: 8px;
+  font-weight: 800;
+  font-size: 1.4rem;
+  letter-spacing: 0.05em;
+  opacity: 0;
+  pointer-events: none;
+  /* above the 3D-flipped card faces */
+  z-index: 2;
+}
+
+.stamp-like {
+  left: 1rem;
+  color: var(--accent-ok);
+  border-color: var(--accent-ok);
+  transform: rotate(-15deg);
+}
+
+.stamp-nope {
+  right: 1rem;
+  color: var(--accent);
+  border-color: var(--accent);
+  transform: rotate(15deg);
+}
+
+.swipe-controls {
+  display: flex;
+  gap: 1.25rem;
+  align-items: center;
+}
+
+.control {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: none;
+  font-size: 1.4rem;
+  background: var(--card-bg);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+}
+
+.control.like {
+  color: var(--accent-ok);
+}
+
+.control.nope {
+  color: var(--accent);
+}
+
+.control.undo {
+  width: 44px;
+  height: 44px;
+  font-size: 1.1rem;
+  color: var(--muted);
+}
+
+.control:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.swipe-status {
+  text-align: center;
+  color: var(--muted);
+  padding: 0 1rem;
+}
+
+.toast {
+  position: fixed;
+  left: 1rem;
+  right: 1rem;
+  bottom: calc(5.5rem + env(safe-area-inset-bottom));
+  margin: 0 auto;
+  max-width: 380px;
+  background: var(--accent);
+  color: white;
+  padding: 0.6rem 1rem;
+  border-radius: 10px;
+  text-align: center;
+  font-size: 0.85rem;
+  z-index: 40;
+}
+
+.match-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+}
+
+.match-overlay-text {
+  background: var(--card-bg);
+  padding: 1.5rem 2rem;
+  border-radius: 16px;
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+/* List views (matches / likes) */
+.list-view {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.list-status {
+  text-align: center;
+  color: var(--muted);
+  padding: 2rem 1rem;
+}
+
+.list-item {
+  display: flex;
+  gap: 0.75rem;
+  background: var(--card-bg);
+  border-radius: 12px;
+  padding: 0.6rem;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  border: 2px solid transparent;
+}
+
+.list-item-clickable {
+  cursor: pointer;
+}
+
+.list-item-match {
+  border-color: var(--accent);
+}
+
+.list-item-gone {
+  opacity: 0.55;
+}
+
+.thumb {
+  width: 72px;
+  height: 72px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: var(--border);
+}
+
+.thumb-placeholder {
+  display: block;
+}
+
+.list-item-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.list-item-title {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  font-weight: 600;
+  margin-bottom: 0.2rem;
+}
+
+.list-item-facts,
+.list-item-location {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.gone-tag {
+  font-size: 0.75rem;
+  color: var(--accent);
+  margin-top: 0.2rem;
+}
+
+.other-status {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-top: 0.3rem;
+}
+
+.match-badge {
+  display: inline-block;
+  margin-top: 0.3rem;
+  background: var(--accent);
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+}
+
+@media (min-width: 640px) {
+  .list-view {
+    max-width: 640px;
+    margin: 0 auto;
+    width: 100%;
+  }
+}
+
+/* Fullscreen image gallery */
+.gallery-overlay {
+  position: fixed;
+  inset: 0;
+  background: #000;
+  z-index: 60;
+  display: flex;
+  /* Keep the swipe-down-to-close gesture (and pinch-zoom) from also
+     bubbling into a native pull-to-refresh/rubber-band on the page
+     underneath. */
+  overscroll-behavior: contain;
+}
+
+.gallery-track {
+  flex: 1;
+  display: flex;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+}
+
+.gallery-slide {
+  flex: 0 0 100%;
+  width: 100%;
+  height: 100%;
+  scroll-snap-align: start;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gallery-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #000;
+}
+
+.gallery-close {
+  position: fixed;
+  top: calc(0.75rem + env(safe-area-inset-top));
+  right: 0.75rem;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.15);
+  color: white;
+  font-size: 1.1rem;
+  z-index: 61;
+}
+
+.gallery-counter {
+  position: fixed;
+  bottom: calc(0.75rem + env(safe-area-inset-bottom));
+  left: 0;
+  right: 0;
+  text-align: center;
+  color: white;
+  font-size: 0.85rem;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+  z-index: 61;
+  pointer-events: none;
+}
+
+/* Detail sheet */
+.detail-sheet {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  z-index: 55;
+  display: flex;
+  flex-direction: column;
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.detail-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.detail-header .card-title {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+}
+
+.detail-back {
+  flex-shrink: 0;
+}
+
+.detail-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.detail-grid {
+  padding: 0.85rem 1rem 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem 1rem;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.3rem;
+}
+
+.detail-row-label {
+  color: var(--muted);
+}
+
+.detail-partner-status {
+  padding: 0 1rem;
+  margin-top: 0.75rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.detail-body .description {
+  padding: 0 1rem;
+}
+
+.detail-actions {
+  padding: 0.75rem 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.button-danger {
+  padding: 0.6rem 1rem;
+  border-radius: 10px;
+  border: 1px solid var(--accent);
+  background: none;
+  color: var(--accent);
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.button-danger.confirming {
+  background: var(--accent);
+  color: white;
+}
+
+.button-danger:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
