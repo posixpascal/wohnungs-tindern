@@ -25,6 +25,8 @@ bun run doctor   # checklist of the local setup + the next step; exit 1 = someth
 
 Fresh checkout: `bun run setup`, then the `wohnung-setup` skill for criteria, location ids and users.
 
+District filtering (new): if `bun run doctor` warns on the `districts` line, run the `wohnung-kriterien` skill ("Stadtteile einrichten") before the next search; it researches the missing cities in parallel research agents (`.agents/skills/wohnung-setup/district-research.md`). Then `bun run districts`, `bun run rescore && bun run push`. Without district data the scraper can't filter by district.
+
 ## Commands
 
 All local tasks are `package.json` scripts (`bun run <script>`, platform-independent). The Makefile only holds SSH server operations (needs make + ssh).

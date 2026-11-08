@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { appFix, displayUrl, formatReport, hasLocationRow, isLocalUrl, missingLocationIds, nextStep, parseUserList, type Check } from "./doctor";
+import { appFix, citiesWithoutDistricts, displayUrl, formatReport, hasLocationRow, isLocalUrl, missingLocationIds, nextStep, parseUserList, type Check } from "./doctor";
 
 const DOC = ["| City | code |", "|---|---|", "| Frankfurt am Main | AD08DE2509 |", "| Bad Camberg | AD08DE2737 |"].join("\n");
 
@@ -91,5 +91,13 @@ describe("appFix", () => {
 
   test("points at the server skill for a deployed app", () => {
     expect(appFix("https://wohnung.example.com", true)).toContain("wohnung-server");
+  });
+});
+
+describe("citiesWithoutDistricts", () => {
+  test("lists cities that have no district data", () => {
+    const withData = { ...loc("Frankfurt am Main"), districts: [{ name: "Gallus", aliases: [], summary: null, highlights: {} }] };
+    expect(citiesWithoutDistricts({ locations: [withData, loc("Idstein")] })).toEqual(["Idstein"]);
+    expect(citiesWithoutDistricts({ locations: [withData] })).toEqual([]);
   });
 });

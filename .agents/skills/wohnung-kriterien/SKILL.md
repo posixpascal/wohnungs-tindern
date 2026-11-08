@@ -1,6 +1,6 @@
 ---
 name: wohnung-kriterien
-description: Changes the search criteria after setup — budget, rooms, living area, cities (incl. portal location ids), districts (Stadtteile), portals, preferences — then validates config/search.json and re-applies it to the stored listings. Use when the user says "kriterien ändern", "budget anpassen", "mehr zimmer", "neue stadt", "stadt hinzufügen", "stadt entfernen", "stadtteile", "stadtteil ausschließen", "portal deaktivieren", "suche anpassen", "change criteria", "add a city" or runs /wohnung-kriterien.
+description: Changes the search criteria after setup — budget, rooms, living area, cities (incl. portal location ids), districts (Stadtteile), portals, preferences — then validates config/search.json and re-applies it to the stored listings. Use when the user says "kriterien ändern", "budget anpassen", "mehr zimmer", "neue stadt", "stadt hinzufügen", "stadt entfernen", "stadtteile", "stadtteile einrichten", "stadtteil ausschließen", "portal deaktivieren", "suche anpassen", "change criteria", "add a city" or runs /wohnung-kriterien.
 ---
 
 # Wohnung Kriterien

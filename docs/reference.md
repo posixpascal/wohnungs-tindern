@@ -129,6 +129,15 @@ The app hides listings an excluded district or a whitelist rules out from the sw
 
 `.env` (from `.env.example`, used by the scraper push and the local app): `WOHNUNG_URL`, `INGEST_TOKEN` (>= 32 chars), `PORT`, `HOST`, `DB_PATH`, `COOKIE_SECURE`, `TRUST_PROXY`. Without `WOHNUNG_URL` and `INGEST_TOKEN` the push step is skipped. Plain `http` is only allowed for `localhost`/`127.0.0.1`.
 
+#### Upgrading an existing install
+
+District filtering only works for cities with a `config/districts/<city-slug>.json`. After pulling this version:
+
+1. `bun run doctor`: the `districts` line names every city without district data.
+2. Run the `wohnung-kriterien` skill ("Stadtteile einrichten"): it researches the missing cities in parallel research agents (`.agents/skills/wohnung-setup/district-research.md`) and validates the files.
+3. Deploy the app (new tables `districts`, `district_settings` are created on startup), then `bun run districts` (push district data), `bun run rescore && bun run push` (canonical district names on stored listings).
+4. Choose districts on the Einstellungen page. `bun run scrape` pulls the selection before every run; interactive `wohnung-suche` runs also check district readiness before opening a portal.
+
 ### Inquiry text ("Anfrage schreiben")
 
 The detail sheet (Likes and Matches) has an **Anfrage schreiben** button: it opens an editable German inquiry text for the landlord, built from the listing (title, place, rooms, area, floor, balcony/garden, rents, availability, description) and the group's shared **Über uns** profile (free text + signature, stored in the app DB table `inquiry_profile`, edited in the same sheet). The app never sends anything; you copy the text and contact the landlord on the portal.

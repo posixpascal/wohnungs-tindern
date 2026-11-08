@@ -73,6 +73,20 @@ Dann im Agenten den Setup-Skill starten (Claude Code: `/wohnung-setup`). Er frag
 
 Die App läuft entweder per Docker im Hintergrund (`bun run docker:up`, Accounts dann mit `bun run docker:user <name>`) oder im Terminal (`bun run dev`, Accounts mit `bun run user <name>`). Der Setup-Skill nimmt Docker, wenn es installiert ist.
 
+## Neu: Stadtteile filtern
+
+Die Portale suchen immer die ganze Stadt. Damit nur Wohnungen in den Stadtteilen landen, die euch interessieren, kennt das Tool jetzt die Stadtteile jeder Stadt – mit Vorteilen, Einkaufen, Kultur, Kino, Schwimmbad, Sehenswürdigkeiten und ÖPNV.
+
+- **Einstellungen** in der App: pro Stadtteil Nein, Egal, Ja oder Favorit. Lesen kann jeder mit dem Link (`/#einstellungen`), ändern nur, wer eingeloggt ist. Gilt für die ganze Gruppe.
+- Jeder Suchlauf (`bun run scrape`, lokal oder per Zeitplan) holt sich vorher diese Auswahl und filtert danach. Ausgeschlossene Wohnungen verschwinden sofort aus dem Stapel und kommen zurück, wenn ihr den Stadtteil wieder erlaubt.
+
+**Schon im Einsatz? Einmal einrichten**, sonst filtert der Agent nicht nach Stadtteilen:
+
+1. `git pull`, dann `bun run doctor` – die Zeile `districts` zeigt, für welche Städte noch Daten fehlen.
+2. Sag deinem Agenten: **„Stadtteile einrichten“** (Skill `wohnung-kriterien`). Er recherchiert die Stadtteile jeder Stadt parallel mit Research-Agenten und legt sie in `config/districts/` ab.
+3. Server aktualisieren (Skill `wohnung-server`, „update deployen“), dann `bun run districts`, `bun run rescore` und `bun run push`.
+4. In der App unter **Einstellungen** die Stadtteile wählen. Ab dem nächsten Suchlauf wird danach gefiltert.
+
 ## Im Alltag
 
 | | |

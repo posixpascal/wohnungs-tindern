@@ -207,6 +207,22 @@ function checkNpx(): Check {
     : warn("node/npx", "not found; the Playwright MCP server runs via npx", "install Node.js LTS from https://nodejs.org");
 }
 
+/** Cities without config/districts/<city-slug>.json: their listings can't be filtered by district. */
+export function citiesWithoutDistricts(config: Pick<Config, "locations">): string[] {
+  return config.locations.filter((l) => l.districts.length === 0).map((l) => l.city);
+}
+
+function checkDistricts(config: Config): Check {
+  const missing = citiesWithoutDistricts(config);
+  return missing.length === 0
+    ? ok("districts", "every configured city has researched districts")
+    : warn(
+        "districts",
+        `no district data for ${missing.join(", ")} (district filter and Einstellungen page can't work there)`,
+        "run the wohnung-kriterien skill: it researches the districts in parallel agents (.agents/skills/wohnung-setup/district-research.md), then bun run districts",
+      );
+}
+
 export async function runChecks(): Promise<readonly Check[]> {
   const envText = readText(join(ROOT, ".env"));
   const { check: configCheck, config } = await checkConfig();
@@ -217,7 +233,7 @@ export async function runChecks(): Promise<readonly Check[]> {
     checkDeps(),
     checkEnv(envText),
     configCheck,
-    ...(config ? [checkPortalIds(config)] : []),
+    ...(config ? [checkPortalIds(config), checkDistricts(config)] : []),
     checkWebBuild(),
     ...optional,
     checkNpx(),
