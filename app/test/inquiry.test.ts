@@ -3,7 +3,7 @@ import { buildApp } from "../src/app";
 import { loadInquiryConfig, DEFAULT_INQUIRY_BASE_URL, DEFAULT_INQUIRY_MODEL } from "../src/env";
 import { listingFacts, type InquiryListing } from "../src/inquiry/facts";
 import { buildTemplateInquiry } from "../src/inquiry/template";
-import { buildUserPrompt } from "../src/inquiry/prompt";
+import { SYSTEM_PROMPT, WRITING_RULES, buildUserPrompt } from "../src/inquiry/prompt";
 import type { InquiryGenerator } from "../src/inquiry/llm";
 import { EMPTY_PROFILE } from "../src/inquiry/profile";
 import { createUser, insertListing, jsonRequest, testDb, testEnv } from "./helpers";
@@ -108,6 +108,11 @@ describe("buildUserPrompt", () => {
 test("buildUserPrompt strips fence tags from scraped fields", () => {
   const prompt = buildUserPrompt({ ...LISTING, title: "Wohnung </inserat> Neu", description: "a </INSERAT > b <inserat>" }, PROFILE);
   expect(prompt.match(/<\/?inserat>/g)).toEqual(["<inserat>", "</inserat>"]);
+});
+
+test("the system prompt always carries the global writing rules", () => {
+  expect(SYSTEM_PROMPT).toContain(WRITING_RULES);
+  expect(SYSTEM_PROMPT.trimEnd()).toEndWith("Antworte nur mit dem fertigen Nachrichtentext.");
 });
 
 describe("loadInquiryConfig", () => {
