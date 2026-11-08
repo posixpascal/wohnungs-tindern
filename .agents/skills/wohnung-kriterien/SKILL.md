@@ -59,7 +59,10 @@ For a new big city, or when the user wants to change districts:
    search per district that fills all seven highlight keys (`shopping`, `culture`, `leisure`,
    `cinema`, `pool`, `sights`, `transit`) before the districts are shown to the user or pushed
    with `bun run districts`. An existing file with missing keys: research and fill them first;
-   never overwrite an existing file wholesale.
+   never overwrite an existing file wholesale. Run the research in parallel research agents
+   (one per new or incomplete city) with the brief in
+   `.agents/skills/wohnung-setup/district-research.md`, then `bun run districts` and
+   `bun run rescore && bun run push`.
 2. Read the selection that currently applies: with a configured app it is the app's
    (`data/district-selection.json`, refreshed by `bun run districts`), otherwise the lists in
    `config/search.json`. Show the user (German) only this city's districts with summary,

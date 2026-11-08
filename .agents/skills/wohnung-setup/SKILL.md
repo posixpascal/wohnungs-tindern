@@ -66,8 +66,9 @@ combined message). Fix and re-run until it passes; surface every error, not just
 ## 3a. Districts (Stadtteile) per city
 
 Portals search a whole city, so without this step every district of e.g. Frankfurt shows up.
-Do this for every configured city that has districts worth choosing between (big cities; skip
-small towns like Idstein — no file means "the whole town").
+Do this for **every** configured city, small towns included (their Ortsteile are how portals
+label listings). The research runs in parallel research agents, one per city, as described in
+[district-research.md](district-research.md); steps 1–3 below are what each agent does.
 
 1. **Only the chosen city.** List the official districts (Stadtteile/Ortsbezirke) of exactly
    this city — not neighbouring towns, not other cities with districts of the same name. Use
@@ -83,7 +84,9 @@ small towns like Idstein — no file means "the whole town").
    - `summary` (≤ 200 chars) and `highlights.shopping` (Einkaufen), `.culture` (Kultur),
      `.leisure` (Freizeit/Ausgehen), `.cinema` (Kino), `.pool` (Schwimmbad), `.sights`
      (Sehenswürdigkeiten), `.transit` (ÖPNV), each ≤ 300 chars, German, short and factual.
-3. **Research every district before anything is shown or pushed.** For each district run a
+3. **Research every district before anything is shown or pushed** — start the research
+   agents from [district-research.md](district-research.md) for all cities at once and wait
+   for all of them. For each district they run a
    web search (web search tool if available, otherwise the browser on the city's site /
    Wikipedia) and fill **all seven** highlight keys with concrete, verified places (e.g. the
    pool's name, the nearest cinema, the main sights). If a district has nothing of a kind,

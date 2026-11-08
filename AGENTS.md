@@ -44,7 +44,7 @@ make remote-cli ARGS="user list"   # app CLI on the server (wohnung-cli or docke
 
 ## Skills
 
-- `wohnung-setup` – first-time onboarding: prerequisites (incl. Playwright MCP), `bun run setup`, interview -> `config/search.json`, portal location ids for new cities, app via Docker or `bun run dev`, users, first run.
+- `wohnung-setup` – first-time onboarding: prerequisites (incl. Playwright MCP), `bun run setup`, interview -> `config/search.json`, portal location ids for new cities, district research for every city in parallel research agents (`district-research.md`, shared with `wohnung-kriterien` and `wohnung-suche`), app via Docker or `bun run dev`, users, first run.
 - `wohnung-suche` – a search run. No args = interactive (asks the user to solve captchas); `headless` = unattended, skips blocked portals; `backfill` = no search, only revisit known listings. Portal URL templates, location ids and extraction scripts live in `.agents/skills/wohnung-suche/portals/<portal>.md`.
 - `wohnung-kriterien` – change criteria later: edit + validate `config/search.json`, districts, location ids for new cities/portals, `bun run districts -- --from-config`, `bun run rescore`, `bun run push`.
 - `wohnung-users` – add/list/re-password/remove app users, local or on the server; the human types passwords, never the agent.

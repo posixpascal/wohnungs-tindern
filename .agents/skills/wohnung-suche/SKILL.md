@@ -27,6 +27,13 @@ If they contain `backfill`, skip step 2 (no search): step 3 runs `candidates.ts`
 `<date>` = today as `YYYY-MM-DD`, `<slug>` = city in lowercase-kebab (`frankfurt-am-main`).
 
 1. **Config** – `Read config/search.json`. For every portal in `portals`, `Read .agents/skills/wohnung-suche/portals/<portal>.md` (location ids, URL template, scripts).
+   **District readiness (before any portal is opened)** – check every city in `search.json`
+   against `.agents/skills/wohnung-setup/district-research.md` ("When a city needs research").
+   Interactive: if any city needs it, tell the user, start the research agents from that file
+   for those cities in parallel, wait for all, validate (`bun run doctor`), push with
+   `bun run districts`, and only then continue with the search. Headless: don't research
+   (it needs web research and new files); search those cities whole-city and name them in the
+   summary ("Stadtteile für <Stadt> fehlen – interaktiv `wohnung-kriterien` ausführen").
    **Districts** – `bun run scrape` / `scrape:headless` already synced before starting you; run it anyway (cheap, and needed when started another way): `bun scraper/settings.ts` syncs the district settings with the app and prints `{"synced",…}` (or `skipped` without `WOHNUNG_URL`/`INGEST_TOKEN` – then `config/search.json` applies). Per-city lines on stderr show what applies (`erlaubt alle` = whole city). A non-zero exit (app unreachable) is not fatal: the last stored selection (`data/district-selection.json`) or the config applies; name it in the summary.
    Interactive only: if a city has a `config/districts/<city-slug>.json` but nothing is chosen (`erlaubt alle`, nothing excluded) and the user hasn't confirmed that before, ask once (German) whether the whole city is fine or which districts to include/exclude – point to **Einstellungen** in the app, or apply the answer with the `wohnung-kriterien` skill (step 3a) before searching. Headless: never ask.
    Portal searches stay city-wide; the district filter is applied by `candidates.ts`/`ingest.ts`, so expect many `Stadtteil nicht im Suchgebiet` filters with a whitelist.
