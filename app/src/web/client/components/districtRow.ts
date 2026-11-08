@@ -2,9 +2,9 @@ import { el } from "../dom";
 import type { DistrictState, DistrictView, HighlightKey } from "../districts";
 import { renderLineIcon } from "./icon";
 
-// One compact line per district: name, listing count, the icons of the
-// highlights it has, and the state toggle. Tapping the name unfolds the
-// summary and the highlight texts. `onChange` null = read-only (logged out).
+// One compact entry per district: name, listing count, the one-line pitch
+// (summary), the icons of the highlights it has, and the state toggle.
+// Tapping the name unfolds the highlight texts. `onChange` null = read-only (logged out).
 
 const HIGHLIGHTS: ReadonlyArray<readonly [HighlightKey, string]> = [
   ["shopping", "Einkaufen"],
@@ -35,7 +35,6 @@ function renderDetails(district: DistrictView): HTMLElement {
     return text ? [el("li", { title: label }, [renderLineIcon(key), el("span", {}, [text])])] : [];
   });
   return el("div", { class: "district-details" }, [
-    ...(district.summary ? [el("p", { class: "district-summary" }, [district.summary])] : []),
     items.length > 0 ? el("ul", { class: "district-highlights" }, items) : el("p", { class: "district-summary" }, ["Noch keine Infos"]),
   ]);
 }
@@ -67,6 +66,7 @@ export function renderDistrictRow(
         el("span", {}, [district.name]),
         ...(district.active_listings > 0 ? [el("span", { class: "district-count" }, [String(district.active_listings)])] : []),
       ]),
+      ...(district.summary ? [el("span", { class: "district-pitch" }, [district.summary])] : []),
       ...(featureIcons.length > 0 ? [el("span", { class: "district-features" }, featureIcons)] : []),
     ]),
   ]);

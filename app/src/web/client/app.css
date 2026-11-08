@@ -1287,3 +1287,16 @@ body {
 .district-state:disabled:not([aria-pressed="true"]) {
   opacity: 0.45;
 }
+
+.district-pitch {
+  font-size: 0.78rem;
+  font-weight: 400;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.district-name[aria-expanded="true"] .district-pitch {
+  white-space: normal;
+}
