@@ -18,8 +18,10 @@ captcha is skipped for the day and named in the report.
   another name, they add it to `.claude/settings.local.json`. Codex: `--full-auto` + network
   access for the push. Without it the job hangs or does nothing.
 - **Push target**: the run pushes to `WOHNUNG_URL` from `.env`. With the local default the app
-  must be running at that time (`bun run dev`); otherwise point `.env` at the deployed server
-  (`wohnung-deploy`). A failed push isn't lost — the next `bun run push` or run sends it.
+  must be running at that time. Recommend the Docker app (`bun run docker:up`): it restarts with
+  Docker, so no terminal has to stay open (on macOS, Docker Desktop must run at that time:
+  Settings → "Start Docker Desktop when you sign in"); `bun run dev` works too. Otherwise point `.env` at the
+  deployed server (`wohnung-deploy`). A failed push isn't lost — the next `bun run push` or run sends it.
 - **Desktop session**: the browser is headed, so the user must be logged in (screen lock is
   fine). On macOS the Mac must be awake; launchd runs a missed job after wake, but not while
   shut down. Optional wake timer the user sets themselves (needs sudo):

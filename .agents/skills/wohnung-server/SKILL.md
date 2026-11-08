@@ -9,13 +9,19 @@ Run from the repository root. Initial setup (server, Caddy, first deploy) is the
 `wohnung-deploy` skill; this one is for an app that's already running.
 
 Target values come from the gitignored `deploy.mk`: `DEPLOY_HOST`, `DEPLOY_USER` (admin SSH user
-with sudo, or root — not the `wohnung` service user), `DOMAIN`, optional `SSH_PORT` (default 22).
+with sudo, or root — not the `wohnung` service user), `DOMAIN`, optional `SSH_PORT` (default 22),
+and `DEPLOY_MODE` (`systemd` default, or `docker` with the code and server `.env` in `DOCKER_DIR`,
+default `/opt/wohnung-finden`). The `make` targets (`deploy`, `status`, `logs`, `backup`,
+`remote-cli`) work the same in both modes; sections marked **Docker** replace the systemd
+commands when `DEPLOY_MODE := docker`.
 Below, `<ssh>` = `ssh -p <SSH_PORT> <DEPLOY_USER>@<DEPLOY_HOST>`. If `deploy.mk` is missing,
 point to `wohnung-deploy`.
 
 **Rules:** read-only checks need no confirmation. Ask before every command that changes remote
 state (deploy, restart, restore, token rotation, deleting files). Never print secrets: don't
-`cat` `/etc/wohnung.env` or `.env`, don't echo tokens. Use `<ssh> -t` for anything with `sudo`
+`cat` `/etc/wohnung.env` or `.env`, don't echo tokens, and in Docker mode never run
+`docker compose config`, `docker inspect` or `env`/`printenv` in a container (they show
+`INGEST_TOKEN`). Use `<ssh> -t` for anything with `sudo`
 so a sudo password prompt works (as root without sudo installed, drop `sudo`).
 
 ## Status and logs
@@ -25,11 +31,16 @@ so a sudo password prompt works (as root without sudo installed, drop `sudo`).
   `<ssh> -t 'sudo journalctl -u wohnung -n 100 --no-pager'`.
 - Reachability: `curl -fsS -o /dev/null -w '%{http_code}\n' https://<DOMAIN>/` (200 expected).
 - Backup timer: `<ssh> 'systemctl list-timers wohnung-backup.timer --no-pager'`.
+- **Docker**: `make status` shows `docker compose ps` + the last app logs; Caddy:
+  `<ssh> -t 'cd <DOCKER_DIR> && sudo docker compose logs --tail 50 caddy'`.
 
 ## Update after code changes
 
 Confirm, then `bun run test:app && make deploy` (add `bun run typecheck` after app changes). The upload
-replaces the binary atomically and `wohnung-restart.path` restarts the service. Verify with
+replaces the binary atomically and `wohnung-restart.path` restarts the service. **Docker**: `make
+deploy` ships the last commit (`git archive HEAD`, warns about uncommitted changes — commit
+first) and rebuilds the containers. Files deleted from the repo stay in `DOCKER_DIR`; after
+renaming `compose.yaml` or `ops/Caddyfile.docker`, remove the old copy there (confirm first). Verify with
 `make status` and the curl check.
 
 ## Backups
@@ -37,7 +48,10 @@ replaces the binary atomically and `wohnung-restart.path` restarts the service. 
 `make backup` downloads the latest nightly snapshot (`wohnung-backup.timer`, 03:30) into
 `backups/wohnung-<timestamp>.sqlite`. Extra snapshot right now, kept on the server (before
 risky changes): `make remote-cli ARGS="backup /var/lib/wohnung/manual-<timestamp>.sqlite"`
-(always a new file name — `VACUUM INTO` refuses to overwrite).
+(always a new file name — `VACUUM INTO` refuses to overwrite). **Docker**: no nightly timer;
+`make backup` takes a fresh snapshot and downloads it (no TTY, so it needs passwordless `sudo`,
+the `docker` group or `root`; otherwise hand it to the human). Extra copy kept on the server:
+`make remote-cli ARGS="backup /data/manual-<timestamp>.sqlite"` (inside the volume).
 
 ## Restore a snapshot
 
@@ -52,6 +66,13 @@ diesem Stand (Swipes, Benutzer) geht verloren.“ Then:
    ```
    <ssh> -t 'sudo systemctl stop wohnung && sudo rm -f /var/lib/wohnung/wohnung.sqlite-wal /var/lib/wohnung/wohnung.sqlite-shm && sudo install -o wohnung -g wohnung -m 600 ~/wohnung-restore.sqlite /var/lib/wohnung/wohnung.sqlite && rm ~/wohnung-restore.sqlite && sudo systemctl start wohnung'
    ```
+   **Docker** instead of 2–3: upload with mode 600 kept, hand the file to the container's app
+   user (uid 10001), replace, and always clean up and start again, even if the copy fails:
+   `chmod 600 backups/<file> && scp -p -P <SSH_PORT> backups/<file> <DEPLOY_USER>@<DEPLOY_HOST>:wohnung-restore.sqlite`, then
+   ```
+   <ssh> -t 'cd <DOCKER_DIR> && sudo chown 10001:10001 ~/wohnung-restore.sqlite && sudo docker compose stop app && sudo docker compose run --rm --no-deps -v ~/wohnung-restore.sqlite:/restore.sqlite:ro --entrypoint sh app -c "test -f /restore.sqlite && install -m 600 /restore.sqlite /data/restore.tmp && rm -f /data/wohnung.sqlite-wal /data/wohnung.sqlite-shm && mv /data/restore.tmp /data/wohnung.sqlite"; rc=$?; sudo rm -f ~/wohnung-restore.sqlite; sudo docker compose up -d; exit $rc'
+   ```
+   (safety copy in step 1 lands in the volume: `backup /data/pre-restore-<timestamp>.sqlite`).
 4. `make status`, `make remote-cli ARGS="user list"`. Listings missing from an old snapshot come
    back with the next search run's push; for an immediate full re-push see `wohnung-deploy`
    step 6 ("Simple").
@@ -71,12 +92,24 @@ No `-t` on the copy line (with a TTY the sudo prompt and `\r` line endings would
 `DEPLOY_USER` = `root` (then drop `sudo`). Otherwise hand the line to the human to run
 themselves (Claude Code: `! <command>`) — never ask for their sudo password.
 If the last ssh fails, `.env` has no token: fix the connection and re-run only the
-`ssh … >> .env` part. Verify with `bun run push` (exit 0, no `401`). Every other machine that
+`ssh … >> .env` part.
+
+**Docker**: the server token lives in `<DOCKER_DIR>/.env` (owned by `DEPLOY_USER`, no `sudo` to
+edit it); `docker compose up -d` recreates the app with the new value:
+```
+ssh <user>@<host> "cd <DOCKER_DIR> && sed -i \"s/^INGEST_TOKEN=.*/INGEST_TOKEN=\$(openssl rand -hex 32)/\" .env"
+ssh -t <user>@<host> 'cd <DOCKER_DIR> && sudo docker compose up -d'
+sed -i.bak '/^INGEST_TOKEN=/d' .env && rm .env.bak && ssh <user>@<host> "grep '^INGEST_TOKEN=' <DOCKER_DIR>/.env" >> .env
+```
+Either mode: verify with `bun run push` (exit 0, no `401`). Every other machine that
 pushes (e.g. a second laptop) needs the same `.env` update.
 
 ## Disk and certificate
 
 - Disk: `<ssh> -t 'df -h / /var/lib/wohnung; sudo du -sh /var/lib/wohnung; journalctl --disk-usage'`.
+  **Docker**: `<ssh> -t 'df -h /; sudo docker system df'`; old images after many deploys can go
+  with `sudo docker image prune -f` (confirm first; never `docker volume prune` — the DB lives
+  in a volume).
   Above ~85 % used: suggest `sudo journalctl --vacuum-time=14d` (confirm first) and look for
   large files; never delete anything in `/var/lib/wohnung` without asking.
 - TLS (Caddy renews automatically):

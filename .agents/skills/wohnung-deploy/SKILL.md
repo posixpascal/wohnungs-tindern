@@ -1,6 +1,6 @@
 ---
 name: wohnung-deploy
-description: First-time deployment — puts the local wohnung-finden app online on a server that doesn't run it yet: one-time Debian/Ubuntu systemd setup (or a pointer for NixOS), Caddy with your domain, first binary upload, and switching the local scraper to push to production. Use when there is no deployment yet (no deploy.mk) and the user says "deploy", "online stellen", "server einrichten", "neuer server", "wohnung deploy", "live schalten" or runs /wohnung-deploy. For an app that's already running (updates, status, logs, backups) use wohnung-server.
+description: First-time deployment — puts the local wohnung-finden app online on a server that doesn't run it yet: one-time Debian/Ubuntu systemd setup or Docker Compose on any Linux host (or a pointer for NixOS), Caddy with your domain, first binary upload, and switching the local scraper to push to production. Use when there is no deployment yet (no deploy.mk) and the user says "deploy", "online stellen", "server einrichten", "neuer server", "wohnung deploy", "live schalten" or runs /wohnung-deploy. For an app that's already running (updates, status, logs, backups) use wohnung-server.
 ---
 
 # Wohnung Deploy
@@ -21,9 +21,15 @@ Ask for:
   logged into. Usually the user's own login.
 - Domain name — check DNS actually points at the server: `dig +short <domain>` (A) and
   `dig +short <domain> AAAA` if they use IPv6
-- OS: Debian/Ubuntu with systemd (this skill handles it) or NixOS (point them at the NixOS
-  snippet at the bottom of `ops/SETUP.md` and offer to adapt it, but don't attempt a generic
-  Nix deploy here — out of scope)
+- Mode — check what the server has (`ssh -p <SSH_PORT> <user>@<host> 'docker compose version'`) and recommend:
+  - **Docker** (`DEPLOY_MODE := docker`): any Linux host with Docker Engine + the compose
+    plugin. Fewest steps: no service user, no units, Caddy runs as a container. Needs ports
+    80/443 free, unless the host already has a reverse proxy (then skip the bundled Caddy, see
+    section D). Follow section **D** instead of steps 3–4.
+  - **systemd** (default): Debian/Ubuntu without Docker, hardened unit, nightly backup timer.
+    Steps 3–4 below.
+  - NixOS: point them at the NixOS snippet at the bottom of `ops/SETUP.md` and offer to adapt
+    it, but don't attempt a generic Nix deploy here — out of scope.
 
 ## 2. Preflight
 
@@ -38,6 +44,9 @@ Write `deploy.mk` (gitignored, read by the `Makefile` via `-include`) with:
 DEPLOY_HOST := <host>
 DEPLOY_USER := <user>
 DOMAIN := <domain>
+# Docker mode only:
+DEPLOY_MODE := docker
+DOCKER_DIR := /opt/wohnung-finden
 ```
 `DOMAIN` is optional (only used for the HTTP check in `make status`), but cheap to set now.
 
@@ -124,14 +133,61 @@ whether local swipe progress matters:
 
 Ask the user which they want; default to the second if they've already been swiping locally.
 
+## D. Docker mode (instead of steps 3–4)
+
+Confirm each remote step. `<ssh>` = `ssh -p <SSH_PORT> <user>@<host>`; drop `sudo` as `root`.
+`make` commands run `docker compose` via `sudo` (unless `root`), so a non-root `DEPLOY_USER`
+needs `sudo` rights for it.
+
+1. Docker missing or older than 28 (`docker version --format '{{.Server.Version}}'`): ask, then
+   install/upgrade it the official way (https://docs.docker.com/engine/install/; distro packages
+   are often old or miss the compose plugin). Before 28, ports published on `127.0.0.1` were
+   reachable from the local network. Note: ufw does not filter Docker-published ports; Caddy
+   uses host networking and the app listens on loopback only, so nothing else is exposed.
+2. Directory owned by `DEPLOY_USER`, so uploads need no `sudo`:
+   `<ssh> -t 'sudo install -d -o "$(id -un)" -g "$(id -gn)" -m 755 /opt/wohnung-finden'`
+3. Upload the code: `make deploy` would also start the containers, so for this first time run
+   only its upload line: `git archive --format=tar HEAD | <ssh> 'tar -x -C /opt/wohnung-finden'`.
+   It ships the committed tree only — commit first if there are local changes.
+4. Server `.env` (in `/opt/wohnung-finden`, mode 600, owned by `DEPLOY_USER`, never printed;
+   the token is generated on the server):
+   ```
+   <ssh> 'cd /opt/wohnung-finden && test ! -e .env && install -m 600 .env.example .env && sed -i -e "s/^INGEST_TOKEN=.*/INGEST_TOKEN=$(openssl rand -hex 32)/" -e "s/^COOKIE_SECURE=.*/COOKIE_SECURE=true/" -e "s/^TRUST_PROXY=.*/TRUST_PROXY=true/" .env && printf "COMPOSE_PROFILES=https\nDOMAIN=%s\n" <domain> >> .env'
+   ```
+   `test ! -e .env` keeps an existing one. Host already runs a reverse proxy (nginx, Caddy,
+   Traefik)? Leave out the `printf` part, point that proxy at `127.0.0.1:3000` and make it set
+   `X-Forwarded-For` (otherwise `TRUST_PROXY=false`).
+5. Start: `make deploy` (re-uploads, then builds with fresh base images and pulls Caddy, so each
+   deploy also picks up security updates; the first build takes a minute). Caddy gets the certificate on the first request; DNS must already point at the host.
+6. Verify: `make status` and `curl -fsS -o /dev/null -w '%{http_code}\n' https://<domain>/`.
+7. Keeping local swipes (the user has been swiping locally)? Do it **now, before step 5**: the
+   restore replaces the server DB, so users created earlier would be lost; local users come
+   along. Take the snapshot as in step 6 ("Preserves swipes") and upload it with mode 600 kept:
+   `chmod 600 data/local-snapshot.sqlite && scp -p -P <SSH_PORT> data/local-snapshot.sqlite <user>@<host>:` —
+   then hand it to the container's app user (uid 10001), stop the app, copy it into the volume
+   (stale WAL files must go, or SQLite replays them onto the snapshot), and always clean up and
+   start again:
+   ```
+   <ssh> -t 'cd /opt/wohnung-finden && sudo chown 10001:10001 ~/local-snapshot.sqlite && sudo docker compose stop app && sudo docker compose run --rm --no-deps -v ~/local-snapshot.sqlite:/restore.sqlite:ro --entrypoint sh app -c "test -f /restore.sqlite && install -m 600 /restore.sqlite /data/restore.tmp && rm -f /data/wohnung.sqlite-wal /data/wohnung.sqlite-shm && mv /data/restore.tmp /data/wohnung.sqlite"; rc=$?; sudo rm -f ~/local-snapshot.sqlite; sudo docker compose up -d; exit $rc'
+   ```
+   Then delete the local copy: `rm data/local-snapshot.sqlite`.
+
+Then continue with step 5 (users, `make remote-cli` works the same; after a restore only for
+people missing from the local DB) and step 6, with these Docker differences (skip its
+"Preserves swipes" option, done in D.7):
+- Token copy (no `sudo` needed, `DEPLOY_USER` owns the file):
+  `sed -i.bak '/^INGEST_TOKEN=/d' .env && rm .env.bak && <ssh> "grep '^INGEST_TOKEN=' /opt/wohnung-finden/.env" >> .env`
+- No nightly backup timer: `make backup` downloads a fresh snapshot on demand. Offer to schedule
+  it locally if they want regular copies.
+
 ## 7. Ongoing
 
-- Updates: `make deploy` again (same command, idempotent).
+- Updates: `make deploy` again (same command, idempotent; Docker mode ships the last commit).
 - Status: `make status` — service state, last 20 log lines, and (with `DOMAIN` set) an HTTP
   check.
 - Logs: `make logs` tails `journalctl -u wohnung -f` over SSH.
-- Backups: `make backup` downloads the latest `wohnung-backup.timer` snapshot into
-  `./backups/`.
+- Backups: `make backup` downloads the latest `wohnung-backup.timer` snapshot (Docker: a fresh
+  one) into `./backups/`.
 - Any other CLI command on the server: `make remote-cli ARGS="user list"`.
 - Day-2 operations beyond this (restore, `INGEST_TOKEN` rotation, disk/TLS checks) are the
   `wohnung-server` skill's job, not this one.

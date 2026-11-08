@@ -1,0 +1,6 @@
+# Only app/ and the shared schema are copied into the image; keep secrets and local state out of the build context.
+*
+!app/
+!db/schema.sql
+app/node_modules/
+app/src/web/dist/

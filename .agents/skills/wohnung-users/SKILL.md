@@ -24,20 +24,26 @@ for a password: never ask for it, hand the command to the human like above.
 
 ## 1. Pick the target
 
-- **Local** (default): the app started with `bun run dev`, DB from the root `.env`.
+- **Local** (default without Docker): the app started with `bun run dev`, DB from the root `.env`.
+- **Docker** (local): the app runs in the compose container — `bun run doctor` shows
+  `app users: … (Docker)`, or `docker compose ps --status running --services` lists `app`. Its
+  users live in the Docker volume, not in `data/wohnung.sqlite`, so never use the Local commands
+  then.
 - **Server**: when the user says so ("auf dem Server", "live", "online", "für die echte App")
   or the app is deployed (`deploy.mk` has `DEPLOY_HOST`) and they clearly mean the app they use
   on their phones. If unclear, ask once: "Lokal oder auf dem Server?"
 
-| Action | Local | Server |
-|---|---|---|
-| List | `bun run users` | `make remote-cli ARGS="user list"` |
-| Add (human runs it) | `bun run user <name>` | `make remote-cli ARGS="user add <name>"` |
-| New password (human runs it) | `bun run passwd <name>` | `make remote-cli ARGS="user passwd <name>"` |
-| Remove | `bun run user-remove <name>` | `make remote-cli ARGS="user remove <name>"` |
+| Action | Local | Docker | Server |
+|---|---|---|---|
+| List | `bun run users` | `bun run docker:users` | `make remote-cli ARGS="user list"` |
+| Add (human runs it) | `bun run user <name>` | `bun run docker:user <name>` | `make remote-cli ARGS="user add <name>"` |
+| New password (human runs it) | `bun run passwd <name>` | `bun run docker:passwd <name>` | `make remote-cli ARGS="user passwd <name>"` |
+| Remove | `bun run user-remove <name>` | `bun run docker:user-remove <name>` | `make remote-cli ARGS="user remove <name>"` |
 
-`make remote-cli` runs `ssh -t <DEPLOY_USER>@<DEPLOY_HOST> 'sudo wohnung-cli …'` (values from
-`deploy.mk`; no `sudo` as `root`); the hidden password prompt works through it. If `DEPLOY_HOST` is missing, point
+The Docker commands are `docker compose exec app wohnung user …`; the hidden prompt works in a
+real terminal. `make remote-cli` runs the CLI over `ssh -t` (values from `deploy.mk`; no `sudo`
+as `root`): `sudo wohnung-cli …` for a systemd server, `docker compose exec app wohnung …` in
+`DOCKER_DIR` with `DEPLOY_MODE := docker`. The hidden password prompt works through both. If `DEPLOY_HOST` is missing, point
 the user to the `wohnung-deploy` skill.
 
 The list shows id, name, created, number of swipes and number of active sessions.
@@ -75,4 +81,4 @@ show up as matches. On the server, offer `make backup` first (downloads the late
 
 ## Summary (German, short)
 
-Ziel (lokal/Server), was geändert wurde, aktuelle Benutzerliste (Name, Swipes, Sessions).
+Ziel (lokal/Docker/Server), was geändert wurde, aktuelle Benutzerliste (Name, Swipes, Sessions).
