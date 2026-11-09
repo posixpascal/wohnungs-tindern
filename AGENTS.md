@@ -7,7 +7,7 @@ Flat-hunting tool for any number of people. A coding agent drives a headed Playw
 - `.agents/skills/` – agent skills (`.claude/skills` is a symlink to it; `CLAUDE.md` is a symlink to this file)
 - `.mcp.json` – Playwright MCP server (`playwright`, headed); `.claude/settings.json` – Claude Code allowlist for headless runs, denies reading `.env`
 - `config/search.json` – search criteria (gitignored; template `config/search.example.json`); `config/districts/<city-slug>.json` – per-city district names, aliases and German highlights (gitignored; example `frankfurt-am-main.example.json`)
-- `scraper/` – pipeline CLIs: `settings.ts` (district sync with the app) -> `candidates.ts` -> `ingest.ts` (`normalize.ts`, `detect.ts`, `districts.ts`, `score.ts`) -> `sweep.ts` -> `push.ts` -> `report.ts`; `rescore.ts`; `config.ts` validates the config
+- `scraper/` – pipeline CLIs: `settings.ts` (district sync with the app) -> `candidates.ts` -> `ingest.ts` (`normalize.ts`, `detect.ts`, `districts.ts`, `score.ts`) -> `sweep.ts` -> `push.ts` -> `report.ts`; `rescore.ts`; `ansprache.ts` (matches + contacted cutoff for `wohnung-ansprache`, state in `data/ansprache.json`); `config.ts` validates the config
 - `db/schema.sql` – scraper DB schema (`data/wohnungen.sqlite`)
 - `app/src/` – server (`auth/`, `swipes/`, `listings/`, `ingest/`, `districts/` (settings page API), `cli/`), web client in `app/src/web/client/`; tests in `app/test/`
 - `scripts/` – cross-platform task scripts behind `package.json`: `setup.ts`, `doctor.ts`, `scrape.ts`
@@ -40,6 +40,7 @@ bun run test           # app + scraper tests (test:app, test:scraper)
 bun run typecheck      # tsc --noEmit for app, scraper, scripts
 bun run scrape | scrape:headless   # SCRAPE_CMD / SCRAPE_HEADLESS_CMD, default Claude Code
 bun run push | report | rescore | districts   # districts: sync district settings with the app (app selection wins per city)
+bun run ansprache [list [--all] | mark <id>… | unmark <id>… | profile <file>]   # matches for wohnung-ansprache, (un)mark contacted, save profile
 make build | deploy | backup | status | logs   # DEPLOY_MODE=systemd (default) or docker, from deploy.mk
 make remote-cli ARGS="user list"   # app CLI on the server (wohnung-cli or docker compose exec)
 ```
@@ -50,6 +51,7 @@ make remote-cli ARGS="user list"   # app CLI on the server (wohnung-cli or docke
 - `wohnung-suche` – a search run. No args = interactive (asks the user to solve captchas); `headless` = unattended, skips blocked portals; `backfill` = no search, only revisit known listings. Portal URL templates, location ids and extraction scripts live in `.agents/skills/wohnung-suche/portals/<portal>.md`.
 - `wohnung-kriterien` – change criteria later: edit + validate `config/search.json`, districts, location ids for new cities/portals, `bun run districts -- --from-config`, `bun run rescore`, `bun run push`.
 - `wohnung-users` – add/list/re-password/remove app users, local or on the server; the human types passwords, never the agent.
+- `wohnung-ansprache` – one copy-ready viewing request per new match (link + text), interviews the group first when the shared inquiry profile is too thin, remembers a cutoff (`data/ansprache.json`) so contacted matches are not listed again.
 - `wohnung-zeitplan` – schedule `bun run scrape:headless` daily (launchd / systemd user timer / cron), test and remove it.
 - `wohnung-portal-fix` – repair a portal's page check / list / detail script after a layout change, verify with extraction + `ingest.ts`.
 - `wohnung-deploy` – put the app on a server (Debian + systemd + Caddy, or Docker Compose + Caddy) and point the scraper's `.env` at it.

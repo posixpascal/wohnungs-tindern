@@ -21,6 +21,7 @@
     "districts": "bun scraper/settings.ts",
     "report": "bun scraper/report.ts",
     "rescore": "bun scraper/rescore.ts",
+    "ansprache": "bun scraper/ansprache.ts",
     "docker:up": "docker compose up -d --build",
     "docker:down": "docker compose down",
     "docker:logs": "docker compose logs -f app",

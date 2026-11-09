@@ -152,6 +152,20 @@ Text source (`app/src/inquiry/`): an LLM via the Vercel AI SDK (`ai` + `@ai-sdk/
 
 Locally they go in `.env`, on a systemd server in `/etc/wohnung.env`, with Docker in the server's `.env`. Routes: `GET/PUT /api/inquiry/profile`, `POST /api/listings/:id/inquiry`.
 
+#### Batch requests by the agent (`wohnung-ansprache`)
+
+The `wohnung-ansprache` skill writes the requests itself (no app LLM needed) for every match not contacted yet and lists link + text per listing. It talks to the app through `scraper/ansprache.ts` with the ingest token:
+
+| Command | Route | Effect |
+|---|---|---|
+| `bun run ansprache` (`list [--all]`) | `POST /api/ingest/matches` | Profile + active matches not marked yet, with `matched_at` (time of the last like). `--all` includes marked ones. |
+| `bun run ansprache mark <id>…` / `unmark <id>…` | `POST /api/ingest/matches` | Adds / removes ids in the sent list (unknown ids are skipped) and recomputes the cutoff. |
+| `bun run ansprache profile <file>` | `POST /api/ingest/inquiry-profile` | Saves `{"about","signature"}` as the shared profile (after the skill's interview). |
+
+State: `data/ansprache.json` (`{"cutoff","sent"}`, gitignored, per machine). The sent list decides what is listed; `cutoff` is the latest `matched_at` up to which every active match was marked (a watermark, not a filter, so a partial mark never hides an uncontacted match). `GET /api/matches` also returns `matched_at`.
+
+With these routes `INGEST_TOKEN` can also read the inquiry profile (names, jobs, phone number), not only write listings: keep it out of agent reach as before and rotate it (`wohnung-server`) if it leaks.
+
 ## Users
 
 One account per person; a listing is a match once **every** user has liked it (so a third account changes matches). Commands that take a password show a hidden double prompt; run them yourself in a terminal (Claude Code: `! bun run user alex`), never through the agent. The `wohnung-users` skill walks you through it.

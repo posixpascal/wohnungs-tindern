@@ -95,6 +95,7 @@ Die Portale suchen immer die ganze Stadt. Damit nur Wohnungen in den Stadtteilen
 | Jeden Morgen automatisch | `/wohnung-zeitplan` (macOS/Linux) |
 | Kriterien ändern | `/wohnung-kriterien` |
 | Stadtteile wählen | Tab **Einstellungen** in der App oder `/wohnung-kriterien` |
+| Besichtigungsanfragen für neue Matches | `/wohnung-ansprache` |
 | Accounts verwalten | `/wohnung-users` |
 | Portal hat sein Layout geändert | `/wohnung-portal-fix` |
 | Online stellen / Server pflegen | `/wohnung-deploy`, `/wohnung-server` |

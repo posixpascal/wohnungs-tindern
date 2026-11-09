@@ -9,6 +9,7 @@ import { districtIngestRoutes, districtSettingsRoutes } from "./districts/routes
 import { listingsRoutes } from "./listings/routes";
 import { swipesRoutes } from "./swipes/routes";
 import { inquiryRoutes } from "./inquiry/routes";
+import { inquiryAgentRoutes } from "./inquiry/agentRoutes";
 import { createLlmGenerator, type InquiryGenerator } from "./inquiry/llm";
 import { ok, fail } from "./http/envelope";
 
@@ -35,6 +36,7 @@ export function buildApp(
     .use(authRoutes(db, env, limiter))
     .use(ingestRoutes(db, env.ingestToken))
     .use(districtIngestRoutes(db, env.ingestToken))
+    .use(inquiryAgentRoutes(db, env.ingestToken))
     .use(districtSettingsRoutes(db))
     .use(listingsRoutes(db))
     .use(swipesRoutes(db))

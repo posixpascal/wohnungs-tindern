@@ -46,6 +46,7 @@ declare module "bun:test" {
   export const test: TestFn & { each: EachFn };
   export const describe: (name: string, fn: () => void) => void;
   export const beforeEach: (fn: () => void | Promise<void>) => void;
+  export const afterEach: (fn: () => void | Promise<void>) => void;
   export function expect(actual: unknown): Matchers;
 }
 
