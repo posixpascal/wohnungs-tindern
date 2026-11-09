@@ -16,6 +16,7 @@ Technical reference for wohnung-finden. Overview and quickstart (German): [READM
                                                             |
                                                             v
                          scraper/ingest.ts  normalize -> hard filters -> score -> data/wohnungen.sqlite
+                         scraper/availability.ts  re-check listings still in play (app watchlist) -> gone / seen
                          scraper/sweep.ts   unseen for 3 days -> gone
                          scraper/push.ts    POST /api/ingest  ---> swipe app (app/, Elysia + SQLite)
                          scraper/report.ts  reports/<date>.md          every user swipes -> matches
@@ -58,7 +59,8 @@ SCRAPE_HEADLESS_CMD='codex exec --full-auto "Use the wohnung-suche skill in head
 A run:
 1. Searches every portal x city from `config/search.json` (max 3 result pages each, newest first).
 2. Visits detail pages for full gallery and description, sharing one budget of 80 per run: all new listings that pass the filters (best score first), then **backfill** (known listings with no detail visit yet and <= 1 image or no description), then **refresh** (known listings whose last detail visit is >= 7 days old).
-3. Ingests, sweeps (unseen for 3 days -> `gone`), pushes to `WOHNUNG_URL`, writes `reports/<date>.md`, ends with a short German summary.
+3. Ingests, then re-checks what is still in play on the website: `availability.ts list` fetches the app's watchlist (`POST /api/ingest/watchlist`: active listings nobody rejected – unswiped, partly liked, matched; matches first; listings hidden by the district settings only when matched), skips those seen on today's result pages and the agent runs each portal's availability check on the rest (max 40, outside the detail budget). `availability.ts apply` marks explicitly gone ones `gone` (IS24 deactivated banner, WG-Gesucht deactivated alert, immowelt HTTP 410 / „Anzeige gelöscht“, Kleinanzeigen redirect to a search page; HTTP 404/410 everywhere) and counts live ones as seen, so a listing that only fell off the capped result pages isn't swept; anything unclear (bot wall, unexpected page) changes nothing. Gone listings leave the swipe queue; likes and matches keep them greyed out as „nicht mehr online“.
+4. Sweeps (unseen for 3 days -> `gone`), pushes to `WOHNUNG_URL`, writes `reports/<date>.md`, ends with a short German summary.
 
 How updates work: the detail page is the source of truth. Added, removed or replaced photos and rewritten descriptions replace the stored ones on the next refresh. An empty gallery or text from a detail page (extraction failure) never wipes stored data, and a list page never overrides what a detail visit delivered. A listing without photos on the portal is revisited weekly, not daily.
 
@@ -203,7 +205,7 @@ To share the app with everyone in your search, run the `wohnung-deploy` skill: i
 .claude/skills         symlink to .agents/skills (Claude Code)
 AGENTS.md              instructions for coding agents (CLAUDE.md is a symlink)
 config/                search.example.json (committed), search.json (yours, gitignored), districts/<city-slug>.json (district descriptions; *.example.json committed)
-scraper/               candidates, ingest, normalize, detect, districts, score, sweep, push, settings (district sync), report, rescore (+ *.test.ts)
+scraper/               candidates, ingest, normalize, detect, districts, score, availability, sweep, push, settings (district sync), report, rescore (+ *.test.ts)
 db/schema.sql          scraper DB schema
 app/                   swipe app: Elysia server (src/), web client (src/web/client), tests (test/)
 Dockerfile, compose.yaml  swipe app image + compose (app, optional Caddy profile `https`)

@@ -73,6 +73,17 @@ Verified 2026-10-14 (expose 29539c63-…): 13 images (11 photos + 2 floor plans,
 
 "Mietkosten" block (verified): `Warmmiete 1.036,20 €`, `Kaltmiete 759,20 €`, `Nebenkosten 124 €`, `Heizkosten 153 €`.
 
+## Availability check (save with `filename: data/raw/<date>-avail-<portal>-<portal_id>.json`)
+
+End-of-run check for candidates from `bun scraper/availability.ts list` (see the skill). Returns `{status, signal}`:
+`gone` only on an explicit signal, `active` when the listing renders, `unknown` otherwise (changes nothing).
+
+A deleted expose answers HTTP 410 with "Anzeige gelöscht" (verified 2026-11-09). A redirect elsewhere was never observed → `unknown`.
+
+```js
+() => { const code = performance.getEntriesByType('navigation')[0]?.responseStatus ?? 0; const text = document.body.innerText.slice(0, 3000); if (/captcha|Zugriff verweigert|Roboter/i.test(document.title + text.slice(0, 500))) return { status: 'unknown', signal: 'Bot-Schutz' }; if (code === 404 || code === 410) return { status: 'gone', signal: 'HTTP ' + code }; if (/Anzeige gelöscht|wurde bereits gelöscht/.test(text)) return { status: 'gone', signal: 'Anzeige gelöscht' }; if (!/^\/expose\//.test(location.pathname)) return { status: 'unknown', signal: 'Weiterleitung auf ' + location.pathname }; if (document.querySelector('[data-testid="cdp-main-description-title"], [data-testid="cdp-location-address"], [data-testid="cdp-features"]')) return { status: 'active', signal: 'Exposé online' }; return { status: 'unknown', signal: 'unerwartete Seite: ' + document.title.slice(0, 80) }; }
+```
+
 ## Pitfalls
 
 - Usercentrics consent dialog (shadow DOM) blocks *clicks* but not `browser_evaluate`. If you need to click, dismiss it with

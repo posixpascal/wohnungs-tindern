@@ -4,8 +4,10 @@ import { IngestBodySchema } from "./schema";
 import { upsertListings } from "./upsert";
 import { verifyIngestToken } from "./token";
 import { ok, fail } from "../http/envelope";
+import { getWatchlist } from "../listings/watchlist";
 
 export const INGEST_PATH = "/api/ingest";
+export const WATCHLIST_PATH = `${INGEST_PATH}/watchlist`;
 
 // Everything under the ingest prefix is token-protected (and CSRF-exempt, see
 // auth/request.ts). A prefix match, not an exact one: Elysia also routes
@@ -41,5 +43,7 @@ export function ingestRoutes(db: Database, ingestToken: string) {
         }
       },
       { body: IngestBodySchema },
-    );
+    )
+    // Listings the scraper's end-of-run availability check revisits (scraper/availability.ts).
+    .post(WATCHLIST_PATH, () => ok({ listings: getWatchlist(db) }));
 }

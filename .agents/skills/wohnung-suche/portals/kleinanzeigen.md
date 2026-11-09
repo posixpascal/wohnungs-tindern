@@ -59,6 +59,18 @@ Verified 2026-10-14 (ad 3538928144): 9 images at 1600×1200, loading hotlinked w
 
 Detail attributes seen: Wohnfläche, Zimmer, Schlafzimmer, Etage (`0` = EG), Wohnungstyp (Erdgeschosswohnung, Terrassenwohnung, Souterrain …), Verfügbar ab, Tauschangebot (`Kein Tausch` / `Tausch`), Nebenkosten, Warmmiete, Heizkosten. Checkmark features: Balkon, Terrasse, Garten/-mitnutzung, Einbauküche, Keller …
 
+## Availability check (save with `filename: data/raw/<date>-avail-<portal>-<portal_id>.json`)
+
+End-of-run check for candidates from `bun scraper/availability.ts list` (see the skill). Returns `{status, signal}`:
+`gone` only on an explicit signal, `active` when the listing renders, `unknown` otherwise (changes nothing).
+
+A deleted ad redirects from `/s-anzeige/<slug>/<id>-…` to a search page (e.g. `/s-wohnung-mieten/schwanheim/c203l14050`, verified 2026-11-09). Only such a search page counts as gone; any other redirect
+(login, consent, another host) is `unknown`.
+
+```js
+() => { const code = performance.getEntriesByType('navigation')[0]?.responseStatus ?? 0; if (/captcha|Zugriff verweigert|Roboter/i.test(document.title)) return { status: 'unknown', signal: 'Bot-Schutz' }; if (code === 404 || code === 410) return { status: 'gone', signal: 'HTTP ' + code }; if (!location.pathname.startsWith('/s-anzeige/')) return location.hostname === 'www.kleinanzeigen.de' && /^\/s-[a-z0-9-]+\//.test(location.pathname) ? { status: 'gone', signal: 'Weiterleitung auf ' + location.pathname } : { status: 'unknown', signal: 'Weiterleitung auf ' + location.hostname + location.pathname }; if (document.querySelector('#viewad-title')) return { status: 'active', signal: 'Anzeige online' }; return { status: 'unknown', signal: 'unerwartete Seite: ' + document.title.slice(0, 80) }; }
+```
+
 ## Pitfalls
 
 - Below the real results there is `#srchrslt-adtable-altads` ("Weitere Ergebnisse in anderen Orten" + Gesuche) – the selector `#srchrslt-adtable article` deliberately ignores it.

@@ -55,11 +55,13 @@ async () => (await (await fetch('/geoautocomplete/v3/locations.json?i=' + encode
 Uses the embedded `IS24.resultList` JSON (no CSS selectors). Returns `[]` when the page is blocked.
 
 ```js
-() => { const m = window.IS24?.resultList?.resultListModel?.searchResponseModel?.['resultlist.resultlist']; if (!m) return []; const arr = x => Array.isArray(x) ? x : x ? [x] : []; const bool = v => v === 'true' || v === true ? true : v === 'false' || v === false ? false : null; return arr(m.resultlistEntries).flatMap(e => arr(e.resultlistEntry)).map(e => { const r = e['resultlist.realEstate'] ?? {}; const a = r.address ?? {}; const id = String(r['@id'] ?? e['@id']); return { portal: 'immoscout24', portal_id: id, url: 'https://www.immobilienscout24.de/expose/' + id, title: r.title ?? '', city: a.city ?? null, district: a.quarter ?? null, address: [a.street, a.houseNumber].filter(Boolean).join(' ') || null, location: a.description?.text ?? null, rent_cold: r.price?.value ?? null, rent_warm: r.calculatedTotalRent?.totalRent?.value ?? null, rooms: r.numberOfRooms ?? null, area: r.livingSpace ?? null, has_garden: bool(r.garden), has_balcony: bool(r.balcony), features: arr(e.realEstateTags?.tag ?? r.realEstateTags?.tag).map(String), images: arr(r.galleryAttachments?.attachment).map(x => arr(x.urls)[0]?.url?.['@href']).filter(Boolean).map(u => u.replace('%WIDTH%', '1200').replace('%HEIGHT%', '900')).slice(0, 30) }; }); }
+() => { const m = window.IS24?.resultList?.resultListModel?.searchResponseModel?.['resultlist.resultlist']; if (!m) return []; const arr = x => Array.isArray(x) ? x : x ? [x] : []; const bool = v => v === 'true' || v === true ? true : v === 'false' || v === false ? false : null; return arr(m.resultlistEntries).flatMap(e => arr(e.resultlistEntry)).filter(e => !e['resultlist.realEstate']?.missedListingLabel).map(e => { const r = e['resultlist.realEstate'] ?? {}; const a = r.address ?? {}; const id = String(r['@id'] ?? e['@id']); return { portal: 'immoscout24', portal_id: id, url: 'https://www.immobilienscout24.de/expose/' + id, title: r.title ?? '', city: a.city ?? null, district: a.quarter ?? null, address: [a.street, a.houseNumber].filter(Boolean).join(' ') || null, location: a.description?.text ?? null, rent_cold: r.price?.value ?? null, rent_warm: r.calculatedTotalRent?.totalRent?.value ?? null, rooms: r.numberOfRooms ?? null, area: r.livingSpace ?? null, has_garden: bool(r.garden), has_balcony: bool(r.balcony), features: arr(e.realEstateTags?.tag ?? r.realEstateTags?.tag).map(String), images: arr(r.galleryAttachments?.attachment).map(x => arr(x.urls)[0]?.url?.['@href']).filter(Boolean).map(u => u.replace('%WIDTH%', '1200').replace('%HEIGHT%', '900')).slice(0, 30) }; }); }
 ```
 
 Notes: `price.value` = Kaltmiete, `calculatedTotalRent.totalRent.value` = Warmmiete (IS24-calculated, `calculationMode: SUMMARIZED`).
 `balcony`/`garden` are explicit booleans. **Floor is not in the list data** → detail page.
+Result pages also carry recently deactivated "missed" listings (`resultlist.realEstate.missedListingLabel`, e.g.
+`"deaktiviert vor 18 Std."`, verified 2026-11-09); the script drops them so they are neither new nor "seen today".
 
 ## Detail extraction (save with `filename`, returns a one-element array)
 
@@ -75,6 +77,19 @@ Verified 2026-10-14 (expose 167457333): 8 images (all load hotlinked with `refer
 Verified fields (expose 171687683): `typ=Souterrain`, `etage=1 von 2`, `kaltmiete=850 €`, `nebenkosten=+ 250 €`,
 `heizkosten=in Nebenkosten enthalten`, `gesamtmiete=1.100 €`, `wohnflaeche-ca=90 m²`, `zimmer=3`, `bezugsfrei-ab=12.10.2026`.
 ingest parses all of these formats ("1 von 2" → 1, "+ 250 €" → 250, text → ignored).
+
+## Availability check (save with `filename: data/raw/<date>-avail-<portal>-<portal_id>.json`)
+
+End-of-run check for candidates from `bun scraper/availability.ts list` (see the skill). Returns `{status, signal}`:
+`gone` only on an explicit signal, `active` when the listing renders, `unknown` otherwise (changes nothing).
+
+A deactivated expose still renders completely (HTTP 200, gallery, prices) with a banner
+`[data-testid="gallery-entry-deactivated-notification"]` ("Angebot wurde deaktiviert", verified 2026-11-09 on 102191830 and
+100640669); a live one (164767549) has none. A redirect away from the expose was never observed → `unknown`.
+
+```js
+() => { const code = performance.getEntriesByType('navigation')[0]?.responseStatus ?? 0; if (/Roboter|captcha/i.test(document.title + document.body.innerText.slice(0, 500))) return { status: 'unknown', signal: 'Bot-Schutz' }; if (document.querySelector('[data-testid="gallery-entry-deactivated-notification"]')) return { status: 'gone', signal: 'Angebot wurde deaktiviert' }; if (code === 404 || code === 410) return { status: 'gone', signal: 'HTTP ' + code }; if (!/\/expose\/\d+/.test(location.pathname)) return { status: 'unknown', signal: 'Weiterleitung auf ' + location.pathname }; if (document.querySelector('#expose-title, dd.is24qa-kaltmiete, .tenant-description-block')) return { status: 'active', signal: 'Exposé online' }; return { status: 'unknown', signal: 'unerwartete Seite: ' + document.title.slice(0, 80) }; }
+```
 
 ## Pitfalls
 

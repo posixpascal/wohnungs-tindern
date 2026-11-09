@@ -60,6 +60,18 @@ Verified 2026-10-14 (ad 14170720): 9 images (1024×1820), loading hotlinked with
 
 Verified "Kosten" block: `Miete: 705€`, `Nebenkosten: 130€`, `Sonstige Kosten: n.a.`; "Angaben zum Objekt" icons: `WG geeignet`, `Badewanne, Dusche`, `Keller`, `Balkon`, `Erdgeschoss` … (go to `features`).
 
+## Availability check (save with `filename: data/raw/<date>-avail-<portal>-<portal_id>.json`)
+
+End-of-run check for candidates from `bun scraper/availability.ts list` (see the skill). Returns `{status, signal}`:
+`gone` only on an explicit signal, `active` when the listing renders, `unknown` otherwise (changes nothing).
+
+A deactivated ad stays at its URL (HTTP 200, title, one picture) with a visible `.alert` box
+"Die Anzeige in … ist deaktiviert." (verified 2026-11-09 on 11236782). Only visible alerts count – hidden ones would match via `innerText`.
+
+```js
+() => { const code = performance.getEntriesByType('navigation')[0]?.responseStatus ?? 0; if (code === 404 || code === 410) return { status: 'gone', signal: 'HTTP ' + code }; const off = [...document.querySelectorAll('.alert')].find(e => e.checkVisibility() && /Anzeige\b.*\bist (momentan )?deaktiviert/.test(e.innerText)); if (off) return { status: 'gone', signal: 'Anzeige deaktiviert' }; if (/\.\d+\.html$/.test(location.pathname) && document.querySelector('#WG-Pictures, [id^="freitext_"]')) return { status: 'active', signal: 'Anzeige online' }; return { status: 'unknown', signal: 'unerwartete Seite: ' + document.title.slice(0, 80) }; }
+```
+
 ## Pitfalls
 
 - Never search category 0 (WG-Zimmer) – the user wants whole flats. Category 1 (1-Zimmer-Wohnung) is below the room minimum anyway.
