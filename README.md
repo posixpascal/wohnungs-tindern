@@ -61,6 +61,20 @@ Richte bitte das Projekt „Wohnungs-Tindern“ lokal bei mir ein.
 6. Gib mir am Ende eine kurze Zusammenfassung auf Deutsch: was eingerichtet ist, wie ich die App öffne und welche Skills ich im Alltag nutze.
 ```
 
+### Mit Claude Cowork
+
+Kurzversion zum Reinkopieren in eine [Claude-Cowork](https://claude.ai)-Session:
+
+```text
+Bitte das Repo https://github.com/posixpascal/wohnungs-tindern einrichten.
+
+- Klone es, wenn wir nicht schon drin sind, und starte in dem Ordner neu, damit du die Projekt-Skills lädst.
+- Lies AGENTS.md und halte dich daran: .env nie lesen oder ausgeben; Passwörter tippe ich selbst, du siehst oder übergibst sie nie.
+- Prüfe Bun, Node.js (npx) und optional Docker. Fehlt etwas, frag mich kurz („Soll ich Bun installieren?“) und installiere es dann selbst mit dem offiziellen Installer; Docker ist optional.
+- Führe `bun run setup` und `bun run doctor` aus und starte dann den Skill `wohnung-setup`. Arbeite ihn auf Deutsch Schritt für Schritt ab (Kriterien, Location-IDs, Stadtteile, App, Accounts, erste Suche).
+- Zum Schluss kurze Zusammenfassung: wie ich die App öffne und welche Skills im Alltag wichtig sind.
+```
+
 ### Von Hand
 
 ```sh
